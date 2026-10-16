@@ -269,19 +269,24 @@ const parseLL = t => {
   if ((m = /^(-?\d{1,3}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)$/.exec(t))) return ok(m[1], m[2]);
   return null;
 };
-async function geocode(q, near) {
+async function geocode(q, near, quick) {
   q = q.trim(); if (!q) return [];
   const saved = () => placesGet().filter(x => x.name.toLowerCase().includes(q.toLowerCase())).slice(0, 5);
   if (navigator.onLine === false) return saved();
   const get = async url => { const ac = new AbortController(), to = setTimeout(() => ac.abort(), 10000); try { const r = await fetch(url, {signal: ac.signal}); if (!r.ok) throw new Error(r.status); return await r.json(); } finally { clearTimeout(to); } };
-  const nom = async t => { const vb = near ? `&viewbox=${near.lng - 2},${near.lat + 2},${near.lng + 2},${near.lat - 2}` : ''; const j = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=id&q=${encodeURIComponent(t)}${vb}`); return j.map(x => ({name: x.display_name, lat: +x.lat, lng: +x.lon})); };
-  const pho = async t => { const j = await get(`https://photon.komoot.io/api/?limit=6&q=${encodeURIComponent(t)}` + (near ? `&lat=${near.lat}&lon=${near.lng}` : '')); return (j.features || []).map(f => { const p = f.properties || {}; return {name: [p.name, p.street, p.city || p.county, p.state, p.country].filter(Boolean).join(', '), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}; }); };
-  const clean = q.replace(/\b(indonesia|jawa timur|east java)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
-  const variants = [...new Set([q, clean].filter(Boolean))];
+  // bounded=true: batasi pencarian ke sekitar posisi pengguna (±0,5°, sekitar 55 km) agar tempat lokal lebih mudah ketemu
+  const nom = async (t, bounded) => { const d = bounded ? 0.5 : 2, vb = near ? `&viewbox=${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}${bounded ? '&bounded=1' : ''}` : ''; const j = await get(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=id&q=${encodeURIComponent(t)}${vb}`); return j.map(x => ({name: x.display_name, lat: +x.lat, lng: +x.lon})); };
+  const pho = async t => { const j = await get(`https://photon.komoot.io/api/?limit=6&q=${encodeURIComponent(t)}` + (near ? `&lat=${near.lat}&lon=${near.lng}` : '')); return (j.features || []).map(f => { const p = f.properties || {}; return {name: [p.name, p.street, p.district || p.locality, p.city || p.county, p.state, p.country].filter(Boolean).join(', '), lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0]}; }); };
+  const add = (out, arr) => { for (const x of arr) if (isFinite(x.lat) && isFinite(x.lng) && !out.some(y => Math.abs(y.lat - x.lat) < 1e-4 && Math.abs(y.lng - x.lng) < 1e-4)) out.push(x); };
   let out = [];
+  // Mode cepat (saran saat mengetik): hanya Photon, urutan relevansi dari server dipertahankan
+  if (quick) { try { add(out, await pho(q)); } catch {} return out.length ? out.slice(0, 6) : saved(); }
+  const clean = q.replace(/\b(indonesia|jawa timur|east java)\b/gi, '').replace(/\s{2,}/g, ' ').trim(), words = clean.split(/\s+/).filter(Boolean);
+  const variants = [...new Set([q, clean, clean.replace(/\bjl\.?\s+/gi, 'jalan '), words.length > 2 ? words.slice(1).join(' ') : '', words.length > 2 ? words.slice(0, -1).join(' ') : ''].filter(Boolean))];
   for (const t of variants) {
-    const rs = await Promise.allSettled([nom(t), pho(t)]);
-    for (const r of rs) if (r.status === 'fulfilled') for (const x of r.value) if (isFinite(x.lat) && isFinite(x.lng) && !out.some(y => Math.abs(y.lat - x.lat) < 1e-4 && Math.abs(y.lng - x.lng) < 1e-4)) out.push(x);
+    const jobs = [pho(t), nom(t, false)]; if (near) jobs.push(nom(t, true));
+    const rs = await Promise.allSettled(jobs);
+    for (const r of rs) if (r.status === 'fulfilled') add(out, r.value);
     if (out.length) break;
   }
   if (near) out.sort((a, b) => hav(near, a) - hav(near, b));
@@ -320,16 +325,16 @@ function openMap() {
       <button class="hb" id="mcl" aria-label="Hapus peta tersimpan" title="Hapus peta tersimpan" style="width:auto">${ic(P.tr, 22)}</button>
       <button class="hb" id="mcfg" aria-label="Sumber peta" title="Sumber peta" style="width:auto">${ic('<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>', 22)}</button>
       <button class="hb" id="mms" aria-label="Ukur jarak" title="Ukur jarak" style="width:auto">${ic('<path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2M10 10l2 2M13 7l2 2"/>', 22)}</button></div>
-    <div class="mapw"><div class="mapv" id="mv"><div id="ml"></div><svg class="mapsvg" id="msvg" style="display:none"><polyline id="mrc" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><polyline id="mrl" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="mapa" id="ma" hidden></div><div class="mapm" id="mm" hidden></div><div class="mapl" id="mln" hidden></div><div class="mapp" id="mk1" hidden>1</div><div class="mapp" id="mk2" hidden>2</div>
+    <div class="mapw"><div class="mapv" id="mv"><div id="ml"></div><svg class="mapsvg" id="msvg" style="display:none"></svg><div class="mapa" id="ma" hidden></div><div class="mapm" id="mm" hidden></div>
       <div class="mapc"><button id="mz1" aria-label="Perbesar">+</button><button id="mz2" aria-label="Perkecil">&minus;</button><button id="mloc" aria-label="Lokasi saya">${ic('<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>', 22)}</button></div>
       <span class="mapat" id="mat"></span></div>
       <div class="mapr" id="mres" hidden></div></div>
     <div class="mapf"><p class="maps" id="ms"></p></div>`;
   document.body.appendChild(o);
-  const mv = o.querySelector('#mv'), layer = o.querySelector('#ml'), ma = o.querySelector('#ma'), mm = o.querySelector('#mm'), ms = o.querySelector('#ms'), mln = o.querySelector('#mln'), mk = [o.querySelector('#mk1'), o.querySelector('#mk2')], msvg = o.querySelector('#msvg'), mrc = o.querySelector('#mrc'), mrl = o.querySelector('#mrl'), mres = o.querySelector('#mres');
+  const mv = o.querySelector('#mv'), layer = o.querySelector('#ml'), ma = o.querySelector('#ma'), mm = o.querySelector('#mm'), ms = o.querySelector('#ms'), msvg = o.querySelector('#msvg'), mres = o.querySelector('#mres'), mks = [];
   o.querySelector('#mat').textContent = TILE_ATTR;
   const tiles = new Map();
-  let loc = lastLoc(), z = loc ? 16 : 5, ctr = loc ? {lat: loc.lat, lng: loc.lng} : {lat: -2.5, lng: 118}, moved = false, cnt = 0, rf = 0, wid = null, busy = false, lastNote = '', meas = false, pts = [null, null], names = ['', ''], sr = null, mode = 'car', routes = {}, routeKey = '', rstat = 'idle';
+  let loc = lastLoc(), z = loc ? 16 : 5, ctr = loc ? {lat: loc.lat, lng: loc.lng} : {lat: -2.5, lng: 118}, moved = false, cnt = 0, rf = 0, wid = null, busy = false, lastNote = '', meas = false, pts = [null, null], names = ['', ''], sr = null, mode = 'car', legs = [];
   const note = t => { lastNote = t; ms.textContent = t; };
   const info = () => (loc ? `Lokasi: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)} (±${Math.round(loc.acc)} m)` : 'Mendeteksi lokasi…') + (navigator.onLine === false ? ' · Offline' : '') + (cnt ? ` · ${cnt} tile tersimpan` : '');
   const refreshCnt = () => idb('readonly', s => s.count()).then(n => { cnt = n || 0; if (!busy) note(info()); }).catch(() => {});
@@ -355,16 +360,24 @@ function openMap() {
       if (r > 8) { ma.hidden = false; ma.style.cssText = `left:${px - r}px;top:${py - r}px;width:${2 * r}px;height:${2 * r}px`; } else ma.hidden = true;
     }
     const pp = pts.map(q => { if (!q) return null; const t = toT(q.lat, q.lng, z); return {x: W / 2 + (t.x - c.x) * 256, y: H / 2 + (t.y - c.y) * 256}; });
-    mk.forEach((m, i) => { m.hidden = !pp[i]; if (pp[i]) { m.style.left = pp[i].x + 'px'; m.style.top = pp[i].y + 'px'; } });
-    const rt = meas && pts[0] && pts[1] ? (mode === 'foot' ? routes.foot : routes.car) : null;
-    if (rt) {
-      const L = rt.line, st = Math.max(1, Math.floor(L.length / 1500)), P2 = [];
-      for (let k = 0; k < L.length; k += st) { const t = toT(L[k][0], L[k][1], z); P2.push(Math.round(W / 2 + (t.x - c.x) * 256) + ',' + Math.round(H / 2 + (t.y - c.y) * 256)); }
-      { const t = toT(L[L.length - 1][0], L[L.length - 1][1], z); P2.push(Math.round(W / 2 + (t.x - c.x) * 256) + ',' + Math.round(H / 2 + (t.y - c.y) * 256)); }
-      const pts2 = P2.join(' '); mrc.setAttribute('points', pts2); mrl.setAttribute('points', pts2);
-      mrl.setAttribute('stroke', mode === 'foot' ? '#2e7d32' : mode === 'motor' ? '#f57c00' : '#1a73e8'); mrl.setAttribute('stroke-dasharray', mode === 'foot' ? '1 9' : ''); msvg.style.display = '';
-    } else msvg.style.display = 'none';
-    if (pp[0] && pp[1] && !rt) { const dx = pp[1].x - pp[0].x, dy = pp[1].y - pp[0].y; mln.hidden = false; mln.style.cssText = `left:${pp[0].x}px;top:${pp[0].y}px;width:${Math.hypot(dx, dy)}px;transform:rotate(${Math.atan2(dy, dx)}rad)`; } else mln.hidden = true;
+    while (mks.length < pts.length) { const d = document.createElement('div'); d.className = 'mapp'; d.textContent = mks.length + 1; mv.appendChild(d); mks.push(d); }
+    while (mks.length > pts.length) mks.pop().remove();
+    mks.forEach((m, i) => { m.hidden = !pp[i]; if (pp[i]) { m.style.left = pp[i].x + 'px'; m.style.top = pp[i].y + 'px'; } });
+    const px2 = t => Math.round(W / 2 + (t.x - c.x) * 256) + ',' + Math.round(H / 2 + (t.y - c.y) * 256);
+    const col = mode === 'foot' ? '#2e7d32' : mode === 'motor' ? '#f57c00' : '#1a73e8';
+    let sv = '';
+    if (meas) for (let i = 0; i < pts.length - 1; i++) {
+      if (!pp[i] || !pp[i + 1]) continue;
+      const lg = legs[i], rt = lg && (mode === 'foot' ? lg.foot : lg.car);
+      if (rt) {
+        const L = rt.line, st = Math.max(1, Math.floor(L.length / 1500)), P2 = [];
+        for (let k = 0; k < L.length; k += st) P2.push(px2(toT(L[k][0], L[k][1], z)));
+        P2.push(px2(toT(L[L.length - 1][0], L[L.length - 1][1], z)));
+        const s2 = P2.join(' ');
+        sv += `<polyline points="${s2}" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><polyline points="${s2}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"${mode === 'foot' ? ' stroke-dasharray="1 9"' : ''}/>`;
+      } else sv += `<polyline points="${Math.round(pp[i].x)},${Math.round(pp[i].y)} ${Math.round(pp[i + 1].x)},${Math.round(pp[i + 1].y)}" fill="none" stroke="#e53935" stroke-width="3" stroke-linecap="round" opacity=".9"/>`;
+    }
+    msvg.innerHTML = sv; msvg.style.display = sv ? '' : 'none';
   }
   const rq = () => { if (!rf) rf = requestAnimationFrame(() => { rf = 0; render(); }); };
   const setZ = nz => { nz = Math.max(3, Math.min(18, nz)); if (nz !== z) { z = nz; rq(); } };
@@ -408,9 +421,10 @@ function openMap() {
     const a = pts.filter(Boolean); if (!a.length) return; moved = true;
     const W = mv.clientWidth, H = mv.clientHeight, ph = meas && !mres.hidden ? mres.offsetHeight + 10 : 0, Hh = Math.max(120, H - ph), off = ph / 2 / 256;
     if (a.length === 1) { z = Math.max(z, 15); const p = toT(a[0].lat, a[0].lng, z); ctr = fromT(p.x, p.y + off, z); rq(); return; }
+    const bb = zz => { const t = a.map(q => toT(q.lat, q.lng, zz)), xs = t.map(q => q.x), ys = t.map(q => q.y); return {x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys)}; };
     let zz = 17;
-    for (; zz > 3; zz--) { const p = toT(a[0].lat, a[0].lng, zz), q = toT(a[1].lat, a[1].lng, zz); if (Math.abs(p.x - q.x) * 256 <= W * 0.7 && Math.abs(p.y - q.y) * 256 <= Hh * 0.6) break; }
-    const p = toT(a[0].lat, a[0].lng, zz), q = toT(a[1].lat, a[1].lng, zz); z = zz; ctr = fromT((p.x + q.x) / 2, (p.y + q.y) / 2 + off, zz); rq();
+    for (; zz > 3; zz--) { const b = bb(zz); if ((b.x1 - b.x0) * 256 <= W * 0.7 && (b.y1 - b.y0) * 256 <= Hh * 0.6) break; }
+    const b = bb(zz); z = zz; ctr = fromT((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2 + off, zz); rq();
   }
   async function doSearch(i) {
     const e = mres.querySelector('#q' + i); names[i] = e ? e.value : names[i]; const q = names[i].trim(); if (!q) return;
@@ -418,56 +432,116 @@ function openMap() {
     const oc = olcRe.exec(q);
     if (oc) {
       let ref = loc || ctr; const full = oc[1].indexOf('+') === 8;
-      if (!full && oc[2]) { sr = {i, list: [], msg: 'Mencari…', q}; showMeas(); const g = await geocode(oc[2], loc || ctr); if (g[0]) ref = g[0]; }
+      if (!full && oc[2]) { sr = {i, list: [], msg: 'Mencari…', q}; showMeas(); const g = await geocode(oc[2], loc || ctr); if (!meas || i >= pts.length) return; if (g[0]) ref = g[0]; }
       const pc = olcToLL(oc[1], ref);
       if (pc) { pts[i] = pc; names[i] = oc[1].toUpperCase(); sr = null; showMeas(); fit(); return; }
     }
     sr = {i, list: [], msg: 'Mencari…', q}; showMeas();
     const list = await geocode(q, loc || ctr);
+    if (!meas || i >= pts.length) return;
     sr = {i, list, q, msg: list.length ? '' : (navigator.onLine === false ? 'Offline: hanya lokasi yang pernah dipilih sebelumnya yang bisa dicari.' : 'Lokasi tidak ditemukan. Coba nama lebih singkat atau tambah nama kota.')}; showMeas();
   }
+  const MAXP = 8; let goBusy = false, goMsg = '';
+  const MODES = {foot: ['Jalan kaki', 'foot', 5000, 1], motor: ['Motor', 'car', 40000, 0.85], car: ['Mobil', 'car', 35000, 1]};
   function syncRoute() {
-    const key = pts[0] && pts[1] ? [pts[0].lat, pts[0].lng, pts[1].lat, pts[1].lng].map(v => v.toFixed(5)).join(',') : '';
-    if (key === routeKey) return;
-    routeKey = key; routes = {}; rstat = key ? (navigator.onLine === false ? 'fail' : 'loading') : 'idle';
-    if (!key || rstat === 'fail') return;
-    const a = pts[0], b = pts[1];
-    Promise.allSettled([getRoute('car', a, b), getRoute('foot', a, b)]).then(([c, f]) => {
-      if (routeKey !== key || !meas) return;
-      routes = {car: c.status === 'fulfilled' ? c.value : null, foot: f.status === 'fulfilled' ? f.value : null};
-      rstat = routes.car || routes.foot ? 'ok' : 'fail'; showMeas(); rq();
-    });
+    const nl = Math.max(0, pts.length - 1), nlegs = [];
+    for (let i = 0; i < nl; i++) {
+      const a = pts[i], b = pts[i + 1], key = a && b ? [a.lat, a.lng, b.lat, b.lng].map(v => v.toFixed(5)).join(',') : '', old = legs[i];
+      if (old && old.key === key) { nlegs.push(old); continue; }
+      const lg = {key, car: null, foot: null, st: !key ? 'idle' : navigator.onLine === false ? 'fail' : 'loading'};
+      nlegs.push(lg);
+      if (lg.st === 'loading') Promise.allSettled([getRoute('car', a, b), getRoute('foot', a, b)]).then(([c, f]) => {
+        if (!meas || !legs.includes(lg)) return;
+        lg.car = c.status === 'fulfilled' ? c.value : null; lg.foot = f.status === 'fulfilled' ? f.value : null;
+        lg.st = lg.car || lg.foot ? 'ok' : 'fail'; updSum(); rq();
+      });
+    }
+    legs = nlegs;
   }
+  const SRI = ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', 18), LCI = ic('<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>', 18), XI = ic('<path d="M18 6 6 18M6 6l12 12"/>', 18);
+  const srHtml = () => sr.live && !sr.list.length ? '' : (sr.list.length ? sr.list.map((x, k) => `<button class="mapo" data-r="${k}">${esc(x.name)}</button>`).join('') : `<div class="mu" style="margin:2px 2px 4px">${sr.msg}</div>`)
+    + (sr.q && !sr.live && sr.msg !== 'Mencari…' ? `<div class="mu" style="margin:6px 2px 0">Tidak ketemu? <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sr.q)}" target="_blank" rel="noopener" style="color:var(--g);font-weight:600">Cari di Google Maps</a>, lalu tempel koordinatnya di atas.</div>` : '');
+  const rowsHtml = () => pts.map((_, i) => `<div class="mapq"><span class="mapn">${i + 1}</span><input id="q${i}" placeholder="Titik ${i + 1} — ketik nama lokasi" value="${esc(names[i])}" autocomplete="off" enterkeyhint="search">${i === 0 ? `<button class="mapi" id="mu1" aria-label="Pakai lokasi saya">${LCI}</button>` : ''}<button class="mapi" id="s${i}" aria-label="Cari">${SRI}</button>${pts.length > 2 ? `<button class="mapi" id="x${i}" aria-label="Hapus titik ${i + 1}">${XI}</button>` : ''}</div>` + `<div class="srx" id="sx${i}">${sr && sr.i === i ? srHtml() : ''}</div>`).join('');
+  const sumHtml = () => {
+    const all = pts.length >= 2 && pts.every(Boolean), n = pts.length - 1;
+    let h = `<button type="button" id="mgo" style="margin:2px 0 6px;display:flex;align-items:center;justify-content:center;gap:8px">${ic(NAVI, 18)}Go</button>` + (goMsg ? `<div class="mu" style="color:var(--rd);margin:0 2px 6px">${esc(goMsg)}</div>` : '');
+    if (!sr) {
+      if (!all) h += `<div class="mu" style="margin:2px 2px 0">Ketik nama atau ketuk peta untuk Titik ${pts.findIndex(p => !p) + 1}</div>`;
+      else {
+        const lv = (k, i) => { const [, f, sp, fc] = MODES[k], r = legs[i] && legs[i][f], d = hav(pts[i], pts[i + 1]) * 1.3; return r ? {dist: r.d, time: r.t / 3600 * fc, ok: true} : {dist: d, time: d / sp, ok: false}; };
+        const tv = k => { let dist = 0, time = 0, ok = true; for (let i = 0; i < n; i++) { const x = lv(k, i); dist += x.dist; time += x.time; ok = ok && x.ok; } return {dist, time, ok}; };
+        let st = 0; for (let i = 0; i < n; i++) st += hav(pts[i], pts[i + 1]);
+        const sel = tv(mode), okc = legs.filter(l => l && l.st === 'ok').length, ld = legs.some(l => l && l.st === 'loading');
+        h += `<div style="margin:4px 2px 0"><b style="font-size:calc(18px*var(--fs,1))">${sel.ok ? '' : '≈'}${fmtD(sel.dist)}</b> · <b>${sel.ok ? '' : '≈'}${fmtT(sel.time)}</b> <span class="mu">garis lurus ${fmtD(st)}</span></div>
+          <div class="mapt">${Object.keys(MODES).map(k => { const x = tv(k); return `<button data-m="${k}" class="${k === mode ? 'on' : ''}">${MODES[k][0]}<b>${x.ok ? '' : '≈'}${fmtT(x.time)}</b><i>${x.ok ? '' : '≈'}${fmtD(x.dist)}</i></button>`; }).join('')}</div>`;
+        if (n > 1) h += `<div style="margin-top:6px">${Array.from({length: n}, (_, i) => { const x = lv(mode, i); return `<div class="cr"><span class="ct">${i + 1}→${i + 2}</span><span class="cl">${x.ok ? '' : '≈'}${fmtD(x.dist)}</span><span class="cv">${x.ok ? '' : '≈'}${fmtT(x.time)}</span></div>`; }).join('')}</div>`;
+        h += `<div class="mu" style="margin:6px 2px 0">${ld ? 'Mencari rute tercepat…' : okc === n ? 'Rute tercepat dari layanan online, belum termasuk macet. Motor memakai rute mobil (waktu ≈0,85×).' : okc === 0 ? 'Rute tidak tersedia (offline/gagal) — memakai estimasi dari garis lurus.' : 'Sebagian rute tidak tersedia — bagian itu memakai estimasi dari garis lurus.'}</div>`;
+      }
+    }
+    const canAdd = pts.every(Boolean) && pts.length < MAXP, any = pts.some(Boolean);
+    if (canAdd || any) h += `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">${canAdd ? '<button type="button" class="ghost sm" id="madd">+ Tambah tujuan</button><span class="mu">atau ketuk peta</span>' : ''}<span style="flex:1"></span>${any ? '<button class="mapx" id="mrs">Reset</button>' : ''}</div>`;
+    return h;
+  };
+  function wireSr() { mres.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const x = sr.list[+b.dataset.r], i = sr.i; pts[i] = {lat: x.lat, lng: x.lng}; names[i] = x.name.split(', ').slice(0, 3).join(', '); placesAdd(x); sr = null; showMeas(); fit(); }); }
+  // Perbarui hanya daftar saran (tanpa membangun ulang kolom input) supaya keyboard HP tidak tertutup saat mengetik
+  function paintSr() { mres.querySelectorAll('.srx').forEach((el, i) => { el.innerHTML = sr && sr.i === i ? srHtml() : ''; }); wireSr(); updSum(); }
+  function wireRows() {
+    pts.forEach((_, i) => {
+      mres.querySelector('#s' + i).onclick = () => doSearch(i);
+      mres.querySelector('#q' + i).onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); doSearch(i); } };
+      const xb = mres.querySelector('#x' + i); if (xb) xb.onclick = () => { pts.splice(i, 1); names.splice(i, 1); sr = null; showMeas(); fit(); rq(); };
+    });
+    wireSr();
+    const ml = mres.querySelector('#mu1'); if (ml) ml.onclick = () => { if (!loc) return note('Lokasi belum terdeteksi.'); pts[0] = {lat: loc.lat, lng: loc.lng}; names[0] = 'Lokasi saya'; sr = null; showMeas(); fit(); };
+  }
+  function wireSum() {
+    mres.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { mode = b.dataset.m; updSum(); rq(); });
+    const ad = mres.querySelector('#madd'); if (ad) ad.onclick = () => { pts.push(null); names.push(''); sr = null; showMeas(); const el = mres.querySelector('#q' + (pts.length - 1)); if (el) { el.focus(); el.scrollIntoView({block: 'nearest'}); } };
+    const rs = mres.querySelector('#mrs'); if (rs) rs.onclick = () => { pts = [null, null]; names = ['', '']; sr = null; legs = []; showMeas(); rq(); };
+    // Go: cari semua titik yang sudah diketik tapi belum dipilih (pengganti Enter di HP); bila semua titik sudah siap, buka rute di Google Maps
+    const go = mres.querySelector('#mgo'); if (go) go.onclick = async () => {
+      if (goBusy) return; goBusy = true; goMsg = '';
+      try {
+        for (let g = 0; g < MAXP; g++) {
+          const i = pts.findIndex((p, k) => !p && (names[k] || '').trim());
+          if (i < 0) break;
+          await doSearch(i);
+          if (!pts[i]) return;
+        }
+        const f = pts.filter(Boolean), ll = p => p.lat.toFixed(6) + ',' + p.lng.toFixed(6);
+        if (f.length < 2) { goMsg = 'Isi minimal 2 titik: ketik nama lokasi atau ketuk peta.'; updSum(); return; }
+        let u = 'https://www.google.com/maps/dir/?api=1&origin=' + ll(f[0]) + '&destination=' + ll(f[f.length - 1]) + '&travelmode=' + ({foot: 'walking', motor: 'two-wheeler', car: 'driving'}[mode]);
+        if (f.length > 2) u += '&waypoints=' + f.slice(1, -1).map(ll).join('%7C');
+        window.open(u, '_blank', 'noopener');
+      } finally { goBusy = false; }
+    };
+  }
+  let sgT = 0, sgK = 0;
+  mres.addEventListener('input', e => {
+    const m = /^q(\d+)$/.exec(e.target.id || ''); if (!m || +m[1] >= names.length) return;
+    const i = +m[1]; names[i] = e.target.value; if (pts[i]) { pts[i] = null; updSum(); rq(); }
+    // Saran lokasi otomatis saat mengetik (jeda 0,45 detik, minimal 3 huruf)
+    clearTimeout(sgT); const v = e.target.value.trim(), k = ++sgK;
+    if (v.length < 3 || parseLL(v) || olcRe.test(v) || navigator.onLine === false) { if (sr && sr.live && sr.i === i) { sr = null; paintSr(); } return; }
+    sgT = setTimeout(async () => {
+      const list = await geocode(v, loc || ctr, true).catch(() => []);
+      if (k !== sgK || !meas || i >= pts.length || (names[i] || '').trim() !== v) return;
+      sr = {i, list, q: v, msg: '', live: true}; paintSr();
+    }, 450);
+  });
   function showMeas() {
     mres.hidden = !meas; if (!meas) return;
-    syncRoute();
-    [0, 1].forEach(i => { const e = mres.querySelector('#q' + i); if (e) names[i] = e.value; });
-    const both = pts[0] && pts[1], SR = ic('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>', 18), LC = ic('<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/>', 18);
-    let h = [0, 1].map(i => `<div class="mapq"><span class="mapn">${i + 1}</span><input id="q${i}" placeholder="Titik ${i + 1} — ketik nama lokasi" value="${esc(names[i])}" autocomplete="off" enterkeyhint="search">${i === 0 ? `<button class="mapi" id="mu1" aria-label="Pakai lokasi saya">${LC}</button>` : ''}<button class="mapi" id="s${i}" aria-label="Cari">${SR}</button></div>`).join('');
-    if (sr) {
-      h += sr.list.length ? sr.list.map((x, k) => `<button class="mapo" data-r="${k}">${esc(x.name)}</button>`).join('') : `<div class="mu" style="margin:2px 2px 4px">${sr.msg}</div>`;
-      if (sr.q && sr.msg !== 'Mencari…') h += `<div class="mu" style="margin:6px 2px 0">Tidak ketemu? <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sr.q)}" target="_blank" rel="noopener" style="color:var(--g);font-weight:600">Cari di Google Maps</a>, lalu tempel koordinatnya di atas.</div>`;
-    } else if (!both) h += `<div class="mu" style="margin:2px 2px 0">Ketik nama atau ketuk peta untuk Titik ${pts[0] ? 2 : 1}</div>`;
-    else { const d = hav(pts[0], pts[1]), rd = d * 1.3, M = {foot: ['Jalan kaki', routes.foot, 5000, 1], motor: ['Motor', routes.car, 40000, 0.85], car: ['Mobil', routes.car, 35000, 1]};
-      const v = k => { const [, r, sp, f] = M[k]; return r ? {dist: r.d, time: r.t / 3600 * f, ok: true} : {dist: rd, time: rd / sp, ok: false}; };
-      const sel = v(mode);
-      h += `<div style="margin:4px 2px 0"><b style="font-size:calc(18px*var(--fs,1))">${sel.ok ? '' : '≈'}${fmtD(sel.dist)}</b> · <b>${sel.ok ? '' : '≈'}${fmtT(sel.time)}</b> <span class="mu">garis lurus ${fmtD(d)}</span></div>
-        <div class="mapt">${Object.keys(M).map(k => { const x = v(k); return `<button data-m="${k}" class="${k === mode ? 'on' : ''}">${M[k][0]}<b>${x.ok ? '' : '≈'}${fmtT(x.time)}</b><i>${x.ok ? '' : '≈'}${fmtD(x.dist)}</i></button>`; }).join('')}</div>
-        <div class="mu" style="margin:6px 2px 0">${rstat === 'loading' ? 'Mencari rute tercepat…' : rstat === 'ok' ? 'Rute tercepat dari layanan online, belum termasuk macet. Motor memakai rute mobil (waktu ≈0,85×).' : 'Rute tidak tersedia (offline/gagal) — memakai estimasi dari garis lurus.'}</div>`; }
-    if (pts[0] || pts[1]) h += `<div style="text-align:right"><button class="mapx" id="mrs">Reset</button></div>`;
-    mres.innerHTML = h;
-    [0, 1].forEach(i => { mres.querySelector('#s' + i).onclick = () => doSearch(i); mres.querySelector('#q' + i).onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); doSearch(i); } }; });
-    mres.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { mode = b.dataset.m; showMeas(); rq(); });
-    mres.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { const x = sr.list[+b.dataset.r], i = sr.i; pts[i] = {lat: x.lat, lng: x.lng}; names[i] = x.name.split(', ').slice(0, 3).join(', '); placesAdd(x); sr = null; showMeas(); fit(); });
-    mres.querySelector('#mu1').onclick = () => { if (!loc) return note('Lokasi belum terdeteksi.'); pts[0] = {lat: loc.lat, lng: loc.lng}; names[0] = 'Lokasi saya'; sr = null; showMeas(); fit(); };
-    const rs = mres.querySelector('#mrs'); if (rs) rs.onclick = () => { pts = [null, null]; names = ['', '']; sr = null; showMeas(); rq(); };
+    goMsg = ''; syncRoute();
+    mres.innerHTML = `<div id="mrows">${rowsHtml()}</div><div id="msum">${sumHtml()}</div>`;
+    wireRows(); wireSum();
   }
+  function updSum() { if (!meas) return; const s = mres.querySelector('#msum'); if (!s) return showMeas(); s.innerHTML = sumHtml(); wireSum(); }
   function tap(e) { const r = mv.getBoundingClientRect(), W = mv.clientWidth, H = mv.clientHeight, n = 2 ** z, c = toT(ctr.lat, ctr.lng, z);
     const q = fromT(c.x + (e.clientX - r.left - W / 2) / 256, Math.max(0, Math.min(n, c.y + (e.clientY - r.top - H / 2) / 256)), z);
-    [0, 1].forEach(i => { const el = mres.querySelector('#q' + i); if (el) names[i] = el.value; });
-    let i = !pts[0] ? 0 : !pts[1] ? 1 : -1; if (i < 0) { pts = [null, null]; names = ['', '']; i = 0; }
+    let i = pts.findIndex(p => !p);
+    if (i < 0) { if (pts.length < MAXP) { pts.push(null); names.push(''); } i = pts.length - 1; }
     pts[i] = q; names[i] = q.lat.toFixed(5) + ', ' + q.lng.toFixed(5); sr = null; showMeas(); rq(); }
-  o.querySelector('#mms').onclick = e => { meas = !meas; if (!meas) { pts = [null, null]; names = ['', '']; sr = null; routes = {}; routeKey = ''; rstat = 'idle'; } e.currentTarget.classList.toggle('on', meas); showMeas(); rq(); };
+  o.querySelector('#mms').onclick = e => { meas = !meas; if (!meas) { pts = [null, null]; names = ['', '']; sr = null; legs = []; } e.currentTarget.classList.toggle('on', meas); showMeas(); rq(); };
   o.querySelector('#mcfg').onclick = () => {
     const v = prompt('Masukkan API key MapTiler (gratis di maptiler.com), atau URL tile lengkap berformat https://…/{z}/{x}/{y}.png\n\nKosongkan lalu OK untuk kembali ke sumber bawaan.', '');
     if (v === null) return;
