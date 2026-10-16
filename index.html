@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Essentrip</title>
+<meta name="theme-color" content="#1f5e3b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{--g:#1f5e3b;--g2:#6fb36f;--bg:#f3f8f4;--card:#fff;--tx:#17301f;--mu:#5f7466;--bd:#dbe8de;--rd:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--g);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+header img{width:34px;height:34px;background:#fff;border-radius:50%}
+header h1{font-size:18px;margin:0;flex:1}
+main{max-width:640px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+input,select,button{font:inherit;padding:10px 12px;border-radius:10px;border:1px solid var(--bd);width:100%;background:#fff;color:var(--tx)}
+button{background:var(--g);color:#fff;border:0;cursor:pointer;font-weight:600}
+button.ghost{background:transparent;color:var(--g);border:1px solid var(--g)}
+button.sm{width:auto;padding:6px 10px;font-size:13px}
+button.del{background:transparent;color:var(--rd);padding:4px 8px;width:auto}
+.row{display:flex;gap:8px;margin-bottom:8px}.row>*{flex:1;min-width:0}
+.mu{color:var(--mu);font-size:13px}
+.trip{cursor:pointer}.trip h3{margin:0 0 4px}
+.tabs{display:flex;gap:6px;margin:12px 0}.tabs button{background:#fff;color:var(--g);border:1px solid var(--bd)}.tabs button.on{background:var(--g);color:#fff}
+.item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}.item:last-child{border:0}
+.item .t{flex:1}.item input[type=checkbox]{width:20px;height:20px;padding:0}
+.done{text-decoration:line-through;color:var(--mu)}
+.bar{height:10px;background:var(--bd);border-radius:6px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--g2)}.bar i.over{background:var(--rd)}
+.auth{text-align:center;margin-top:24px}.auth img{width:140px}
+.err{color:var(--rd);font-size:13px;min-height:18px}
+a{color:var(--g)}
+</style>
+</head>
+<body>
+<header><img src="icons/logo.png" alt=""><h1>Essentrip</h1><button id="out" class="sm ghost" style="display:none;color:#fff;border-color:#fff">Keluar</button></header>
+<main id="app"></main>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {getFirestore,collection,doc,addDoc,setDoc,deleteDoc,onSnapshot,query,orderBy} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA0kZTm3iMIoXG0CCoLuKaGxLgUVGhYSTM",
+  authDomain: "essentrip-4a40e.firebaseapp.com",
+  projectId: "essentrip-4a40e",
+  storageBucket: "essentrip-4a40e.firebasestorage.app",
+  messagingSenderId: "727575957818",
+  appId: "1:727575957818:web:be96efbba8ef37d6b20003"
+};
+const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
+
+const $ = s => document.querySelector(s), A = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const uid = () => Math.random().toString(36).slice(2, 9);
+const fd = d => d ? new Date(d + 'T00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+
+let user = null, trips = [], cur = null, tab = 'plan', unsub = null, authMode = 'login';
+const tripsCol = () => collection(db, 'users', user.uid, 'trips');
+const tripRef = id => doc(db, 'users', user.uid, 'trips', id);
+const getTrip = () => trips.find(t => t.id === cur);
+const save = (t, patch) => setDoc(tripRef(t.id), patch, {merge: true});
+
+onAuthStateChanged(auth, u => {
+  user = u; if (unsub) unsub(); trips = []; cur = null;
+  $('#out').style.display = u ? '' : 'none';
+  if (!u) return renderAuth();
+  unsub = onSnapshot(query(tripsCol(), orderBy('created', 'desc')), s => {
+    trips = s.docs.map(d => ({id: d.id, itin: [], exp: [], pack: [], ...d.data()}));
+    render();
+  }, e => { A.innerHTML = `<div class="card err">Gagal memuat data: ${esc(e.message)}<br>Periksa Firestore Rules.</div>`; });
+});
+$('#out').onclick = () => signOut(auth);
+
+function renderAuth(msg = '') {
+  const reg = authMode === 'register';
+  A.innerHTML = `<div class="auth"><img src="icons/logo.png" alt="Essentrip">
+  <p class="mu">Rencanakan perjalananmu dengan mudah.</p>
+  <form id="af" class="card" style="text-align:left">
+    <div class="row"><input id="em" type="email" placeholder="Email" required autocomplete="email"></div>
+    <div class="row"><input id="pw" type="password" placeholder="Password (min. 6 karakter)" required minlength="6" autocomplete="${reg ? 'new-password' : 'current-password'}"></div>
+    <div class="err" id="er">${esc(msg)}</div>
+    <div class="row"><button>${reg ? 'Daftar' : 'Masuk'}</button></div>
+    <div class="row"><button type="button" class="ghost" id="sw">${reg ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}</button></div>
+    ${reg ? '' : '<div class="mu" style="text-align:center"><a href="#" id="fg">Lupa password?</a></div>'}
+  </form></div>`;
+  $('#sw').onclick = () => { authMode = reg ? 'login' : 'register'; renderAuth(); };
+  const fg = $('#fg'); if (fg) fg.onclick = async e => {
+    e.preventDefault(); const em = $('#em').value;
+    if (!em) return renderAuth('Isi email dulu.');
+    try { await sendPasswordResetEmail(auth, em); renderAuth('Tautan reset dikirim ke email.'); } catch (x) { renderAuth(errMsg(x)); }
+  };
+  $('#af').onsubmit = async e => {
+    e.preventDefault(); const em = $('#em').value, pw = $('#pw').value;
+    try { reg ? await createUserWithEmailAndPassword(auth, em, pw) : await signInWithEmailAndPassword(auth, em, pw); }
+    catch (x) { $('#er').textContent = errMsg(x); }
+  };
+}
+const errMsg = x => ({
+  'auth/invalid-credential': 'Email atau password salah.', 'auth/email-already-in-use': 'Email sudah terdaftar.',
+  'auth/weak-password': 'Password minimal 6 karakter.', 'auth/invalid-email': 'Format email tidak valid.',
+  'auth/operation-not-allowed': 'Aktifkan Email/Password di Firebase Console.'
+}[x.code] || x.message);
+
+function render() { if (!user) return; cur && getTrip() ? renderTrip() : (cur = null, renderList()); }
+
+function renderList() {
+  A.innerHTML = `<form id="nf" class="card"><b>Trip baru</b>
+    <div class="row" style="margin-top:8px"><input id="nn" placeholder="Nama trip (mis. Liburan Bali)" required></div>
+    <div class="row"><input id="nd" placeholder="Tujuan" required></div>
+    <div class="row"><input id="ns" type="date" required><input id="ne" type="date" required></div>
+    <div class="row"><input id="nb" type="number" min="0" placeholder="Budget (Rp)"></div>
+    <div class="row"><button>Tambah Trip</button></div></form>
+    ${trips.length ? trips.map(t => `<div class="card trip" data-open="${t.id}"><h3>${esc(t.name)}</h3>
+      <div class="mu">📍 ${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div>
+      <div class="mu">Biaya ${rp(sum(t))} / ${rp(t.budget)}</div></div>`).join('') : '<p class="mu" style="text-align:center">Belum ada trip. Buat yang pertama!</p>'}`;
+  $('#nf').onsubmit = async e => {
+    e.preventDefault();
+    await addDoc(tripsCol(), {name: $('#nn').value.trim(), dest: $('#nd').value.trim(), start: $('#ns').value, end: $('#ne').value,
+      budget: +$('#nb').value || 0, itin: [], exp: [], pack: [], created: Date.now()});
+  };
+  A.querySelectorAll('[data-open]').forEach(el => el.onclick = () => { cur = el.dataset.open; tab = 'plan'; render(); });
+}
+const sum = t => (t.exp || []).reduce((a, x) => a + x.amt, 0);
+
+function renderTrip() {
+  const t = getTrip();
+  const tabs = [['plan', 'Rencana'], ['cost', 'Biaya'], ['pack', 'Packing']];
+  A.innerHTML = `<button class="sm ghost" id="bk">← Semua trip</button>
+  <h2 style="margin:12px 0 2px">${esc(t.name)}</h2><div class="mu">📍 ${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div>
+  <div class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <div id="tb"></div>
+  <p style="text-align:center"><button class="del" id="dt">Hapus trip ini</button></p>`;
+  $('#bk').onclick = () => { cur = null; render(); };
+  $('#dt').onclick = async () => { if (confirm('Hapus trip ini beserta isinya?')) { const id = t.id; cur = null; await deleteDoc(tripRef(id)); } };
+  A.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; renderTrip(); });
+  ({plan: tabPlan, cost: tabCost, pack: tabPack})[tab](t, $('#tb'));
+}
+
+function tabPlan(t, el) {
+  const items = [...t.itin].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  el.innerHTML = `<form class="card" id="f"><div class="row"><input id="d" type="date" min="${t.start}" max="${t.end}" value="${t.start}" required><input id="h" type="time"></div>
+    <div class="row"><input id="n" placeholder="Kegiatan / tempat" required></div><div class="row"><button>Tambah ke itinerary</button></div></form>
+    <div class="card">${items.length ? items.map(i => `<div class="item"><div class="t"><b>${esc(i.title)}</b><div class="mu">${fd(i.date)} ${esc(i.time)}</div></div><button class="del" data-x="${i.id}">✕</button></div>`).join('') : '<span class="mu">Belum ada rencana.</span>'}</div>`;
+  el.querySelector('#f').onsubmit = e => { e.preventDefault(); save(t, {itin: [...t.itin, {id: uid(), date: $('#d').value, time: $('#h').value, title: $('#n').value.trim()}]}); };
+  el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => save(t, {itin: t.itin.filter(i => i.id !== b.dataset.x)}));
+}
+
+function tabCost(t, el) {
+  const tot = sum(t), pct = t.budget ? Math.min(100, tot / t.budget * 100) : 0;
+  el.innerHTML = `<div class="card"><b>${rp(tot)}</b> <span class="mu">dari budget ${rp(t.budget)}</span>
+    <div class="bar"><i class="${t.budget && tot > t.budget ? 'over' : ''}" style="width:${pct}%"></i></div>
+    <div class="mu">${t.budget ? (tot > t.budget ? 'Melebihi budget ' + rp(tot - t.budget) : 'Sisa ' + rp(t.budget - tot)) : 'Budget belum diatur'}</div></div>
+    <form class="card" id="f"><div class="row"><input id="n" placeholder="Keterangan" required></div>
+    <div class="row"><input id="a" type="number" min="0" placeholder="Jumlah (Rp)" required>
+    <select id="c"><option>Transport</option><option>Penginapan</option><option>Makan</option><option>Tiket</option><option>Lainnya</option></select></div>
+    <div class="row"><button>Catat biaya</button></div></form>
+    <div class="card">${t.exp.length ? t.exp.map(x => `<div class="item"><div class="t"><b>${esc(x.title)}</b><div class="mu">${esc(x.cat)}</div></div><span>${rp(x.amt)}</span><button class="del" data-x="${x.id}">✕</button></div>`).join('') : '<span class="mu">Belum ada biaya.</span>'}</div>`;
+  el.querySelector('#f').onsubmit = e => { e.preventDefault(); save(t, {exp: [...t.exp, {id: uid(), title: $('#n').value.trim(), amt: +$('#a').value, cat: $('#c').value}]}); };
+  el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => save(t, {exp: t.exp.filter(x => x.id !== b.dataset.x)}));
+}
+
+function tabPack(t, el) {
+  const d = t.pack.filter(p => p.done).length;
+  el.innerHTML = `<form class="card" id="f"><div class="row"><input id="n" placeholder="Barang yang dibawa" required><button style="flex:0 0 90px">Tambah</button></div></form>
+    <div class="card"><div class="mu" style="margin-bottom:6px">${d}/${t.pack.length} siap</div>${t.pack.length ? t.pack.map(p => `<div class="item"><input type="checkbox" data-c="${p.id}" ${p.done ? 'checked' : ''}><span class="t ${p.done ? 'done' : ''}">${esc(p.title)}</span><button class="del" data-x="${p.id}">✕</button></div>`).join('') : '<span class="mu">Daftar kosong.</span>'}</div>`;
+  el.querySelector('#f').onsubmit = e => { e.preventDefault(); save(t, {pack: [...t.pack, {id: uid(), title: $('#n').value.trim(), done: false}]}); };
+  el.querySelectorAll('[data-c]').forEach(c => c.onchange = () => save(t, {pack: t.pack.map(p => p.id === c.dataset.c ? {...p, done: c.checked} : p)}));
+  el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => save(t, {pack: t.pack.filter(p => p.id !== b.dataset.x)}));
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js');
+</script>
+</body>
+</html>
