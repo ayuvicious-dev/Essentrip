@@ -1090,14 +1090,24 @@ function openActRecap(t, it0) {
     <div class="rb">${it.note ? `<div style="white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 8px">${esc(it.note)}</div>` : ''}
       <h4 class="rh">Biaya${cs.length ? ' · ' + rp(tot) : ''}</h4>
       ${cs.length ? cs.map(c => `<div class="cr"><span class="cl">${esc(c.name) || esc(it.title)}</span><span class="cv">${rp(c.amt)}</span></div>`).join('') : '<span class="mu">Belum ada biaya.</span>'}
-      <h4 class="rh">List persiapan${ls.length ? ' · ' + dn + '/' + ls.length + ' siap' : ''}</h4>
-      ${ls.length ? cats.map(c => { const g = ls.filter(l => l.cat === c);
-        return `<div class="dg">${esc(c)} · ${g.filter(isD).length}/${g.length}</div>` + g.map(l => `<div class="cr"><span class="ct" style="min-width:26px;color:${isD(l) ? 'var(--g)' : 'var(--mu)'}">${isD(l) ? OK : NO}</span><span class="cl ${isD(l) ? 'done' : ''}">${esc(l.name)}</span></div>`).join(''); }).join('') : '<span class="mu">Belum ada list.</span>'}
+      <h4 class="rh" data-lt>List persiapan${ls.length ? ' · ' + dn + '/' + ls.length + ' siap' : ''}</h4>
+      ${ls.length ? cats.map((c, k) => { const g = ls.filter(l => l.cat === c);
+        return `<div class="dg" data-cg="${k}">${esc(c)} · ${g.filter(isD).length}/${g.length}</div>` + g.map(l => `<label class="cr" style="cursor:pointer;align-items:center"><input type="checkbox" data-rk="${esc(nk(l.name))}" ${isD(l) ? 'checked' : ''} aria-label="Centang ${esc(l.name)}" style="width:20px;height:20px;padding:0;flex:none"><span class="cl ${isD(l) ? 'done' : ''}">${esc(l.name)}</span></label>`).join(''); }).join('') : '<span class="mu">Belum ada list.</span>'}
     </div>
     <div class="row" style="margin:12px 0 0"><button type="button" id="rc">Tutup</button></div></div>`;
   document.body.appendChild(o);
   o.onclick = e => { if (e.target === o) o.remove(); };
   o.querySelector('#rc').onclick = () => o.remove();
+  // list persiapan bisa dicentang langsung dari rekap (sinkron dengan Packing List)
+  const st = {}; ls.forEach(l => { st[nk(l.name)] = isD(l); });
+  const refresh = () => {
+    o.querySelector('[data-lt]').textContent = 'List persiapan · ' + ls.filter(l => st[nk(l.name)]).length + '/' + ls.length + ' siap';
+    cats.forEach((c, k) => { const g = ls.filter(l => l.cat === c); o.querySelector('[data-cg="' + k + '"]').textContent = c + ' · ' + g.filter(l => st[nk(l.name)]).length + '/' + g.length; });
+  };
+  o.querySelectorAll('[data-rk]').forEach(c => c.onchange = () => {
+    st[c.dataset.rk] = c.checked; togglePack(t.id, c.dataset.rk, c.checked);
+    o.querySelectorAll('[data-rk]').forEach(x => { if (x.dataset.rk === c.dataset.rk) { x.checked = c.checked; x.nextElementSibling.classList.toggle('done', c.checked); } });
+    refresh(); });
 }
 
 // Ubah jam kegiatan langsung dari kartu (tanpa membuka form edit penuh)
