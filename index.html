@@ -132,6 +132,7 @@ input,select,button,textarea{padding:9px 12px}
 .ac.cp{display:flex;align-items:center;gap:10px;padding:9px 4px 9px 10px;margin-bottom:8px;border-radius:14px;cursor:pointer}
 .cm{flex:1;min-width:0}.ct2{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:calc(15px*var(--fs,1));overflow-wrap:anywhere;line-height:1.25}
 .cm .mu{margin-top:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}.tm3{color:var(--g)}
+.tmed{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;padding:2px 0}
 .ac.cp .ab{padding:7px}
 .tg .chv{display:flex;align-items:center;justify-content:center;width:30px;height:30px;color:var(--mu);flex:none;transition:transform .2s}.tg.open .chv{transform:rotate(90deg)}
 .tgb{margin:-2px 0 10px 18px;padding-left:8px;border-left:2px solid var(--bd)}.tgb .ac.cp{margin-bottom:6px}.tgb .go{margin:2px 0 0}
@@ -199,6 +200,27 @@ input,select,button,textarea{padding:9px 12px}
 .tn{position:absolute;left:3px;z-index:1;height:13px;line-height:13px;font-size:calc(10px*var(--fs,1));font-weight:600;color:var(--g);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
 .ck label{display:flex;align-items:center;gap:8px;margin:7px 0;cursor:pointer}
 .ck input{width:18px;height:18px;padding:0;flex:none}
+/* ---- Responsif: daftar kartu berbentuk grid (HP = 1 kolom, layar lebar = beberapa kolom) ---- */
+.cgrid,main>#pl{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px;align-items:start}
+.cgrid>.card,main>#pl>.ac{margin-bottom:0}
+main>#pl>p{grid-column:1/-1}
+@media (min-width:700px) and (max-width:899px){main{max-width:760px}}
+/* ---- Desktop: menu jadi sidebar kiri, konten melebar dan dibagi dua kolom ---- */
+@media (min-width:900px){
+  body.in #nav{left:0;right:auto;top:55px;bottom:0;width:232px;max-width:none;margin:0;border-radius:0;box-shadow:none;border:0;border-right:1px solid var(--bd);flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;padding:16px 12px;overflow-y:auto}
+  body.in #nav button[data-p]{flex:none;flex-direction:row;justify-content:flex-start;gap:12px;font-size:calc(14px*var(--fs,1));padding:11px 14px;margin:0;font-weight:600}
+  body.in #nav button[data-p] svg{flex:none}
+  body.in #fab{order:-1;top:0;margin:0 0 12px;width:100%!important;height:46px;border-radius:12px;border:0;box-shadow:none;font-size:22px;display:flex;align-items:center;justify-content:center;gap:8px}
+  body.in #fab::after{content:attr(aria-label);font-size:calc(14px*var(--fs,1));font-weight:600}
+  body.in main{max-width:none;margin:0 0 0 232px;padding:24px max(32px,calc((100vw - 232px - 1100px) / 2)) 56px}
+  .pdg{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px;align-items:start}
+  .pdr>h2:first-child{margin-top:0!important}
+  .calw{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+  .cd{min-height:78px}
+  .sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+  .sgrid .about{grid-column:1/-1}
+  .mapr{right:auto;width:460px}
+}
 </style>
 </head>
 <body>
@@ -227,6 +249,10 @@ document.getElementById('hl').src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEU
 const $ = s => document.querySelector(s), A = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rp = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+// Kolom nominal (class "rpi"): otomatis tampil "Rp 1.250.000" saat mengetik; rpNum mengembalikan angkanya
+const rpFmt = v => { const d = String(v ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 13); return d ? 'Rp ' + Number(d).toLocaleString('id-ID') : ''; };
+const rpNum = v => +String(v ?? '').replace(/\D/g, '') || 0;
+document.addEventListener('input', e => { if (e.target.classList && e.target.classList.contains('rpi')) e.target.value = rpFmt(e.target.value); });
 const uid = () => Math.random().toString(36).slice(2, 9);
 const iso2d = i => i ? i.split('-').reverse().join('/') : '';
 const d2iso = v => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((v || '').trim()); if (!m) return null; const dt = new Date(`${m[3]}-${m[2]}-${m[1]}T00:00`); return isNaN(dt) || dt.getDate() !== +m[1] || dt.getMonth() + 1 !== +m[2] ? null : `${m[3]}-${m[2]}-${m[1]}`; };
@@ -625,6 +651,7 @@ onAuthStateChanged(auth, u => {
   user = u; if (unsub) unsub(); trips = []; cur = null; page = 'trips'; planOpen = false;
   $('#top').style.display = u ? '' : 'none';
   $('#nav').style.display = u ? '' : 'none';
+  document.body.classList.toggle('in', !!u); // aktifkan tata letak desktop (sidebar) hanya saat sudah masuk
   if (!u) return renderAuth();
   unsub = onSnapshot(query(tripsCol(), orderBy('created', 'desc')), s => {
     trips = s.docs.map(d => ({id: d.id, itin: [], exp: [], pack: [], pdone: [], ...d.data()}));
@@ -699,7 +726,7 @@ function openNew() {
     <div class="row" style="margin-top:8px"><input id="nn" placeholder="Nama trip (mis. Liburan Bali)" required></div>
     <div class="row"><input id="nd" placeholder="Tujuan" required></div>
     <div class="row">${dField('ns')}${dField('ne')}</div>
-    <div class="row"><input id="nb" type="number" min="0" placeholder="Budget (Rp)"></div>
+    <div class="row"><input id="nb" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Budget (Rp)"></div>
     <div class="row"><button type="button" class="ghost" id="nc">Batal</button><button>Simpan</button></div></form>`;
   document.body.appendChild(o);
   o.onclick = e => { if (e.target === o) o.remove(); };
@@ -710,7 +737,7 @@ function openNew() {
     if (!start || !end) return alert('Isi tanggal dengan format dd/mm/yyyy.');
     if (end < start) return alert('Tanggal selesai harus setelah tanggal mulai.');
     const r = await addDoc(tripsCol(), {name: o.querySelector('#nn').value.trim(), dest: o.querySelector('#nd').value.trim(),
-      start, end, budget: +o.querySelector('#nb').value || 0,
+      start, end, budget: rpNum(o.querySelector('#nb').value),
       itin: [], exp: [], pack: [], created: Date.now()});
     cur = r.id; page = 'plan'; planOpen = true; o.remove(); render();
   };
@@ -728,7 +755,7 @@ function openRecap(t, k) {
         + by[d].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')).map(i => cr(esc(i.title), '', esc(i.time) || '—')).join('')).join('') : none('Belum ada rencana.')]; },
     cost: () => { const tot = sum(t);
       return ['Biaya', `<div class="mu" style="margin-bottom:4px">Realisasi <b>${rp(tot)}</b> dari ${rp(t.budget)}${t.budget ? ' · ' + (tot > t.budget ? 'lebih ' + rp(tot - t.budget) : 'sisa ' + rp(t.budget - tot)) : ''}</div>`
-        + (t.exp.length ? '<div class="dg">Rincian</div>' + t.exp.map(x => cr(`${esc(x.title)} <span class="mu">· ${esc(x.cat)}</span>`, rp(x.amt))).join('') : none('Belum ada pengeluaran.'))]; },
+        + (t.exp.length || actCosts(t).length ? '<div class="dg">Rincian</div>' + t.exp.map(x => cr(`${esc(x.title)} <span class="mu">· ${esc(x.cat)}</span>`, rp(x.amt))).join('') + costItems(t).map(({i, c}) => cr(`${esc(c.name) || esc(i.title)} <span class="mu">· ${esc(i.title)}</span>`, rp(c.amt))).join('') : none('Belum ada pengeluaran.'))]; },
     pack: () => { const d = ents.filter(p => p.done).length;
       return ['Packing · ' + d + '/' + ents.length + ' siap', ents.length ? `<div class="pg">${ents.map((p, n) => `<label class="${p.done ? 'done' : ''}"><input type="checkbox" data-pk="${n}" ${p.done ? 'checked' : ''}><span>${esc(p.title)}</span></label>`).join('')}</div><div class="mu pn" style="margin-top:6px"></div>` : none('Daftar kosong.')]; }
   };
@@ -768,7 +795,7 @@ function renderList() {
   };
   A.innerHTML = `<div class="hero">
     <div class="tiles"><div class="tile"><b>${c.up}</b><span>akan datang</span></div><div class="tile"><b>${c.on}</b><span>berlangsung</span></div><div class="tile"><b>${c.done}</b><span>selesai</span></div></div></div>
-    <h2 class="sec">Perjalanan kamu</h2>` + (list.length ? list.map(card).join('') : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
+    <h2 class="sec">Perjalanan kamu</h2>` + (list.length ? '<div class="cgrid">' + list.map(card).join('') + '</div>' : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
   A.querySelectorAll('.tc').forEach(el => { const id = el.dataset.open;
     el.onclick = () => { cur = id; page = 'plan'; planOpen = true; render(); window.scrollTo(0, 0); };
     el.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id), b.dataset.go); });
@@ -776,7 +803,14 @@ function renderList() {
     el.querySelector('[data-rm]').onclick = async e => { e.stopPropagation(); if (confirm('Hapus trip ini beserta isinya?')) { if (cur === id) cur = null; await deleteDoc(tripRef(id)); } };
   });
 }
-const sum = t => (t.exp || []).reduce((a, x) => a + x.amt, 0);
+// Biaya yang diisi pada kegiatan ikut dihitung sebagai realisasi trip
+// Satu kegiatan bisa punya beberapa biaya: costs = [{id, name, amt}]. Data lama (satu biaya: cost + costName) tetap terbaca.
+const costsOf = i => Array.isArray(i.costs) ? i.costs.filter(c => +c.amt > 0) : (+i.cost > 0 ? [{id: 'c0', name: i.costName || '', amt: +i.cost}] : []);
+const costSum = i => costsOf(i).reduce((a, c) => a + +c.amt, 0);
+const withCosts = (i, arr) => { const {cost, costName, ...r} = i; return {...r, costs: arr}; };
+const actCosts = t => (t.itin || []).filter(i => costSum(i) > 0).sort((a, b) => a.date.localeCompare(b.date) || (a.time || '99:99').localeCompare(b.time || '99:99'));
+const costItems = t => actCosts(t).flatMap(i => costsOf(i).map(c => ({i, c})));
+const sum = t => (t.exp || []).reduce((a, x) => a + x.amt, 0) + actCosts(t).reduce((a, i) => a + costSum(i), 0);
 
 const ACAT_DEF = ['Transport', 'Penginapan', 'Makan', 'Wisata', 'Lainnya'];
 let ACAT = [...ACAT_DEF], ACIK = Object.fromEntries(ACAT_DEF.map(c => [c, c])); // kategori kegiatan (bisa diubah pengguna), ACIK = ikon tiap kategori
@@ -799,13 +833,19 @@ const sd = d => new Date(d + 'T00:00').toLocaleDateString('id-ID', {weekday: 'sh
 const inTrip = (t, d) => d >= t.start && d <= t.end;
 const dlab = (t, d) => inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : d < t.start ? 'H-' + dayDiff(t.start, d) : sd(d);
 const acat = i => ACAT.includes(i.cat) ? i.cat : (ACAT.includes('Lainnya') ? 'Lainnya' : ACAT[0]);
+// Durasi kegiatan = selisih jam mulai ke kegiatan berikutnya (jam lebih akhir) di hari yang sama; kegiatan terakhir hari itu tidak punya durasi
+const t2m = s => { const [h, m] = s.split(':'); return +h * 60 + +m; };
+const fmtMin = m => m < 60 ? m + ' mnt' : Math.floor(m / 60) + ' j' + (m % 60 ? ' ' + (m % 60) + ' mnt' : '');
+const durOf = (t, i) => { if (!i.time) return ''; const a = t2m(i.time); let b = null;
+  for (const x of t.itin) if (x.date === i.date && x.time && x.id !== i.id) { const m = t2m(x.time); if (m > a && (b === null || m < b)) b = m; }
+  return b === null ? '' : fmtMin(b - a); };
 const mapUrl = (t, i) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(i.title + ' ' + t.dest);
 
 // ---- List per kegiatan (Elektronik, Baju, Barang, Makanan, Lainnya, atau kategori baru) — otomatis tersambung ke Packing List ----
 const LCAT = ['Elektronik', 'Baju', 'Barang', 'Makanan', 'Lainnya'];
 const nk = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const freshTrip = id => trips.find(x => x.id === id);
-let lastCat = 'Barang', showChecked = false; // barang yang sudah dicentang disembunyikan otomatis
+let lastCat = 'Barang', showChecked = false, packCat = null; // barang yang sudah dicentang disembunyikan otomatis
 // Gabungkan item packing manual + semua list kegiatan; nama yang sama (tanpa beda huruf besar/kecil) dihitung satu barang.
 function packAll(t) {
   const m = new Map(), dn = new Set(t.pdone || []);
@@ -902,26 +942,64 @@ function listBox(tid, aid) {
   return box;
 }
 
+const costRow = (c = {}) => `<div class="row cstr" data-id="${esc(c.id || '')}"><input class="cnm" placeholder="Nama biaya (mis. Tiket kereta)" maxlength="60" value="${esc(c.name)}"><input class="rpi cam" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 132px" value="${+c.amt > 0 ? rpFmt(c.amt) : ''}"><button type="button" class="del" data-crm aria-label="Hapus biaya" style="flex:0 0 auto">✕</button></div>`;
+const listRow = (t, l = {}) => `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}"><select class="lct" aria-label="Kategori" style="flex:0 0 112px">${catOpts(t, l.cat || lastCat)}</select><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto">✕</button></div><div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`;
 const actBody = (t, it = {}) => `<div class="row">${dField('ad', it.date || '', '', t.end)}${tField('ah', it.time || '')}</div>
   <div class="row"><input id="an" placeholder="Kegiatan / tempat" required value="${esc(it.title)}"></div>
   <div class="row"><select id="ac">${ACAT.map(c => `<option ${c === acat(it) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ab" id="ack" aria-label="Kelola kategori kegiatan" title="Kelola kategori" style="flex:0 0 44px;color:var(--g);justify-content:center">${PEN}</button></div>
+  <div id="acs">${(costsOf(it).length ? costsOf(it) : [{}]).map(costRow).join('')}</div>
+  <div class="row"><button type="button" class="ghost sm" id="aca2" style="flex:0 0 auto">+ Tambah biaya</button></div>
+  <div class="lsx" style="margin:8px 0 6px"><h4>List persiapan</h4><div id="als">${(it.lists || []).map(l => listRow(t, l)).join('')}</div>
+  <div class="row" style="margin-top:6px"><button type="button" class="ghost sm" id="ala" style="flex:0 0 auto">+ Tambah barang</button></div></div>
   <div class="row"><textarea id="ano" rows="3" placeholder="Catatan (opsional)">${esc(it.note)}</textarea></div>`;
 function readAct(t, m) {
   const dd = d2iso(m.querySelector('#ad').value), tt = t2v(m.querySelector('#ah').value);
   if (!dd) return alert('Isi tanggal dengan format dd/mm/yyyy.');
   if (dd > t.end) return alert('Tanggal kegiatan tidak boleh setelah tanggal selesai trip (' + fd(t.end) + ').');
   if (tt === null) return alert('Jam tidak valid. Gunakan format 24 jam, mis. 07:30.');
-  return {date: dd, time: tt, title: m.querySelector('#an').value.trim(), cat: m.querySelector('#ac').value, note: m.querySelector('#ano').value.trim()};
+  const costs = [...m.querySelectorAll('.cstr')].map(r => ({id: r.dataset.id || uid(), name: r.querySelector('.cnm').value.trim(), amt: rpNum(r.querySelector('.cam').value)})).filter(c => c.amt > 0);
+  const lists = [], ren = [], seen = new Set();
+  for (const r of m.querySelectorAll('.lrw')) {
+    const nm = r.querySelector('.lnm').value.trim(); if (!nm) continue;
+    const ct = readCat(r.querySelector('.lct'), r.querySelector('.lnc'));
+    if (!ct) return alert('Isi nama kategori baru untuk barang "' + nm + '".');
+    if (seen.has(nk(nm))) return alert('Barang "' + nm + '" muncul dua kali di list kegiatan ini.');
+    seen.add(nk(nm)); lists.push({id: r.dataset.id || uid(), cat: ct, name: nm});
+    if (r.dataset.on && nk(r.dataset.on) !== nk(nm)) ren.push([nk(r.dataset.on), nk(nm)]);
+  }
+  return {date: dd, time: tt, title: m.querySelector('#an').value.trim(), cat: m.querySelector('#ac').value, note: m.querySelector('#ano').value.trim(), costs, lists, _ren: ren};
 }
-function wireACat(m) { m.querySelector('#ack').onclick = () => manageACats(map => { const sel = m.querySelector('#ac'), cur = sel.value, nc = cur in map ? map[cur] : cur;
+function wireLists(t, m) {
+  const box = m.querySelector('#als'), wire = r => catPick(r.querySelector('.lct'), r.querySelector('.lnc'));
+  box.querySelectorAll('.lrw').forEach(wire);
+  m.querySelector('#ala').onclick = () => { box.insertAdjacentHTML('beforeend', listRow(t, {})); const r = box.lastElementChild; wire(r); r.querySelector('.lnm').focus(); };
+  box.onclick = e => { const b = e.target.closest('[data-lrm]'); if (b) b.closest('.lrw').remove(); };
+}
+function wireACat(t, m) {
+  wireLists(t, m);
+  const box = m.querySelector('#acs');
+  m.querySelector('#aca2').onclick = () => { box.insertAdjacentHTML('beforeend', costRow()); box.lastElementChild.querySelector('.cnm').focus(); };
+  box.onclick = e => { const b = e.target.closest('[data-crm]'); if (b) b.closest('.cstr').remove(); };
+  m.querySelector('#ack').onclick = () => manageACats(map => { const sel = m.querySelector('#ac'), cur = sel.value, nc = cur in map ? map[cur] : cur;
   sel.innerHTML = ACAT.map(c => `<option>${esc(c)}</option>`).join(''); sel.value = ACAT.includes(nc) ? nc : acat({cat: nc}); }); }
 function addPlan(t, date) {
-  wireACat(openEdit('Tambah kegiatan', actBody(t, {date}), m => { const v = readAct(t, m); if (!v) return;
-    const f = freshTrip(t.id) || t; save(f, {itin: [...f.itin, {id: uid(), ...v}]}); return true; }));
+  wireACat(t, openEdit('Tambah kegiatan', actBody(t, {date}), m => { const v = readAct(t, m); if (!v) return;
+    const {_ren, ...vv} = v, f = freshTrip(t.id) || t; save(f, {itin: [...f.itin, {id: uid(), ...vv}]}); return true; }));
 }
 function editPlan(t, it) {
-  wireACat(openEdit('Edit kegiatan', actBody(t, it), m => { const v = readAct(t, m); if (!v) return;
-    const f = freshTrip(t.id) || t; save(f, {itin: f.itin.map(i => i.id === it.id ? {...i, ...v} : i)}); return true; }));
+  const ov = openEdit('Edit kegiatan', actBody(t, it), m => { const v = readAct(t, m); if (!v) return;
+    const {_ren, ...vv} = v, f = freshTrip(t.id) || t;
+    const itin = f.itin.map(i => i.id === it.id ? withCosts({...i, ...vv}, vv.costs) : i);
+    const ks = new Set(packAll({...f, itin}).map(e => e.key)), pd = new Set(f.pdone || []);
+    _ren.forEach(([o, n]) => { if (pd.has(o) && !ks.has(o)) pd.add(n); });
+    save(f, {itin, pdone: [...pd].filter(k => ks.has(k))}); return true; });
+  wireACat(t, ov);
+  // tombol hapus kegiatan di sebelah kiri Batal
+  const dl = document.createElement('button'); dl.type = 'button'; dl.className = 'ghost'; dl.id = 'edel'; dl.setAttribute('aria-label', 'Hapus kegiatan'); dl.title = 'Hapus kegiatan';
+  dl.style.cssText = 'flex:0 0 52px;padding:0;color:var(--rd);border-color:var(--rd);display:flex;align-items:center;justify-content:center';
+  dl.innerHTML = ic(P.tr, 18);
+  dl.onclick = () => { if (delAct(freshTrip(t.id) || t, it)) ov.remove(); };
+  ov.querySelector('#ec0').before(dl);
 }
 // Kelola kategori kegiatan: tambah, ubah nama, hapus
 function manageACats(done) {
@@ -962,20 +1040,83 @@ function openDetail(t, it) {
   const T = () => freshTrip(t.id) || t, I = () => T().itin.find(i => i.id === it.id) || it;
   const close = () => { o.remove(); if (listSheet && listSheet.o === o) listSheet = null; };
   o.innerHTML = `<div class="sheet"><div class="ach"><span class="ib">${ic(aci(c), 20)}</span><h3>${esc(it.title)}</h3><button type="button" class="ab" id="dc" aria-label="Tutup" title="Tutup" style="align-self:flex-start;margin:-6px -8px 0 0">${ic('<path d="M18 6 6 18M6 6l12 12"/>', 22)}</button></div>
-    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span><span class="chip">${dlab(t, it.date)}</span>${inTrip(t, it.date) || it.date < t.start ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${c}</span></div>
+    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(t, it) ? `<span class="chip">Durasi ${durOf(t, it)}</span>` : ''}<span class="chip">${dlab(t, it.date)}</span>${inTrip(t, it.date) || it.date < t.start ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${c}</span><span class="chip" id="dcc" hidden></span></div>
     <div class="dtb"><button type="button" class="ab" id="dm" aria-label="Peta" title="Peta">${ic(NAVI, 18)}</button><button type="button" class="ab" id="dd" aria-label="Duplikat" title="Duplikat">${ic(COPY, 18)}</button><button type="button" class="ab" id="de" aria-label="Edit" title="Edit">${ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 18)}</button><button type="button" class="ab" id="dx" aria-label="Hapus" title="Hapus" style="color:var(--rd)">${ic(P.tr, 18)}</button></div>
     ${it.note ? `<div style="white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 14px">${esc(it.note)}</div>` : ''}
+    <div class="lsx" style="margin-bottom:12px"><div style="display:flex;align-items:baseline;gap:8px"><h4 style="flex:1">Biaya</h4><span class="mu" id="dct"></span></div>
+      <div class="ladd"><div class="row lar"><input id="dcn" placeholder="Nama biaya (mis. Tiket kereta)" maxlength="60"><input id="dcm" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Rp 0" style="flex:0 0 132px"><button type="button" class="lbtn" id="dcs" aria-label="Tambah biaya">+</button></div></div>
+      <div id="dcl"></div></div>
     <div id="lslot"></div>
   </div>`;
   document.body.appendChild(o);
+  const chip = o.querySelector('#dcc'), ctot = o.querySelector('#dct'), clist = o.querySelector('#dcl'), cbtn = o.querySelector('#dcs');
+  const saveCosts = arr => { const f = T(); save(f, {itin: f.itin.map(i => i.id === it.id ? withCosts(i, arr) : i)}); };
+  const paintCost = () => { const x = I(), cs = costsOf(x), tot = costSum(x);
+    chip.hidden = !tot; chip.textContent = 'Biaya · ' + rp(tot);
+    ctot.textContent = cs.length ? 'Total ' + rp(tot) : '';
+    clist.innerHTML = cs.length ? cs.map(c => `<div class="item"><span class="t"><span class="tt">${esc(c.name) || esc(x.title)}</span></span><span>${rp(c.amt)}</span><button type="button" class="del ed" data-ce="${esc(c.id)}" aria-label="Edit biaya">${PEN}</button><button type="button" class="del" data-cx="${esc(c.id)}" aria-label="Hapus biaya">✕</button></div>`).join('') + '<div class="mu" style="margin-top:6px">Biaya otomatis masuk realisasi trip.</div>' : '<div class="mu" style="margin:4px 0">Belum ada biaya. Biaya otomatis masuk realisasi trip.</div>';
+    clist.querySelectorAll('[data-cx]').forEach(b => b.onclick = () => saveCosts(costsOf(I()).filter(c => c.id !== b.dataset.cx)));
+    clist.querySelectorAll('[data-ce]').forEach(b => b.onclick = () => { const c = costsOf(I()).find(q => q.id === b.dataset.ce); if (!c) return;
+      openEdit('Edit biaya', `<div class="row"><input id="ecn" placeholder="Nama biaya" maxlength="60" value="${esc(c.name)}"></div><div class="row"><input id="eca" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Rp 0" value="${rpFmt(c.amt)}" required></div>`, m => {
+        const amt = rpNum(m.querySelector('#eca').value); if (!(amt > 0)) return alert('Isi jumlah biaya lebih dari 0.');
+        saveCosts(costsOf(I()).map(q => q.id === c.id ? {...q, name: m.querySelector('#ecn').value.trim(), amt} : q)); return true; }); }); };
+  const doCost = () => { const amt = rpNum(o.querySelector('#dcm').value);
+    if (!(amt > 0)) return alert('Isi jumlah biaya lebih dari 0.');
+    saveCosts([...costsOf(I()), {id: uid(), name: o.querySelector('#dcn').value.trim(), amt}]);
+    o.querySelector('#dcn').value = ''; o.querySelector('#dcm').value = ''; o.querySelector('#dcn').focus(); };
+  cbtn.onclick = doCost;
+  o.querySelectorAll('#dcn,#dcm').forEach(inp => inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); doCost(); } });
+  paintCost();
   const box = listBox(t.id, it.id); o.querySelector('#lslot').appendChild(box); paintLists(box, t.id, it.id);
-  listSheet = {o, paint: () => { if (!document.body.contains(o)) { listSheet = null; return; } if (!paintLists(box, t.id, it.id)) close(); }};
+  listSheet = {o, paint: () => { if (!document.body.contains(o)) { listSheet = null; return; } paintCost(); if (!paintLists(box, t.id, it.id)) close(); }};
   o.onclick = e => { if (e.target === o) close(); };
   o.querySelector('#dc').onclick = close;
   o.querySelector('#dm').onclick = () => window.open(mapUrl(T(), I()), '_blank', 'noopener');
   o.querySelector('#dd').onclick = () => { dupAct(T(), I()); close(); };
   o.querySelector('#de').onclick = () => { close(); editPlan(T(), I()); };
   o.querySelector('#dx').onclick = () => { if (delAct(T(), I())) close(); };
+}
+
+// Rekap kegiatan (hanya baca): biaya & list persiapan beserta status centang, tanpa bisa diubah
+function openActRecap(t, it0) {
+  const f = freshTrip(t.id) || t, it = f.itin.find(i => i.id === it0.id) || it0;
+  const cat = acat(it), ents = new Map(packAll(f).map(e => [e.key, e])), ls = it.lists || [], cs = costsOf(it), tot = costSum(it);
+  const isD = l => !!(ents.get(nk(l.name)) || {}).done, dn = ls.filter(isD).length;
+  const cats = [...LCAT, ...ls.map(l => l.cat)].filter((c, i, a) => c && a.indexOf(c) === i && ls.some(l => l.cat === c));
+  const OK = ic('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>', 18), NO = ic('<circle cx="12" cy="12" r="9"/>', 18);
+  const o = document.createElement('div'); o.className = 'ov';
+  o.innerHTML = `<div class="sheet rc"><div class="ach"><span class="ib">${ic(aci(cat), 20)}</span><h3>${esc(it.title)}</h3></div>
+    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(f, it) ? `<span class="chip">Durasi ${durOf(f, it)}</span>` : ''}<span class="chip">${dlab(f, it.date)}</span>${inTrip(f, it.date) || it.date < f.start ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${esc(cat)}</span></div>
+    <div class="rb">${it.note ? `<div style="white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 8px">${esc(it.note)}</div>` : ''}
+      <h4 class="rh">Biaya${cs.length ? ' · ' + rp(tot) : ''}</h4>
+      ${cs.length ? cs.map(c => `<div class="cr"><span class="cl">${esc(c.name) || esc(it.title)}</span><span class="cv">${rp(c.amt)}</span></div>`).join('') : '<span class="mu">Belum ada biaya.</span>'}
+      <h4 class="rh">List persiapan${ls.length ? ' · ' + dn + '/' + ls.length + ' siap' : ''}</h4>
+      ${ls.length ? cats.map(c => { const g = ls.filter(l => l.cat === c);
+        return `<div class="dg">${esc(c)} · ${g.filter(isD).length}/${g.length}</div>` + g.map(l => `<div class="cr"><span class="ct" style="min-width:26px;color:${isD(l) ? 'var(--g)' : 'var(--mu)'}">${isD(l) ? OK : NO}</span><span class="cl ${isD(l) ? 'done' : ''}">${esc(l.name)}</span></div>`).join(''); }).join('') : '<span class="mu">Belum ada list.</span>'}
+    </div>
+    <div class="row" style="margin:12px 0 0"><button type="button" id="rc">Tutup</button></div></div>`;
+  document.body.appendChild(o);
+  o.onclick = e => { if (e.target === o) o.remove(); };
+  o.querySelector('#rc').onclick = () => o.remove();
+}
+
+// Ubah jam kegiatan langsung dari kartu (tanpa membuka form edit penuh)
+function quickTime(t, it) {
+  const m2t = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+  const m = openEdit('', `<div class="row" style="align-items:center">${tField('qh', it.time || '')}<div class="ck" style="flex:0 0 auto"><label style="margin:0;white-space:nowrap;font-size:calc(13px*var(--fs,1))"><input type="checkbox" id="qadj"><span>Adjustment Waktu</span></label></div></div>`, m => {
+    const tt = t2v(m.querySelector('#qh').value);
+    if (tt === null) return alert('Jam tidak valid. Gunakan format 24 jam, mis. 07:30.');
+    const f = freshTrip(t.id) || t, cur = f.itin.find(i => i.id === it.id) || it;
+    // Adjustment Waktu: selisih jam baru terhadap jam lama dipakai untuk menggeser kegiatan berikutnya di hari yang sama (durasi antar kegiatan tetap)
+    const oldM = cur.time ? t2m(cur.time) : null, delta = m.querySelector('#qadj').checked && oldM !== null && tt ? t2m(tt) - oldM : 0;
+    let bad = false;
+    const itin = f.itin.map(i => {
+      if (i.id === it.id) return {...i, time: tt};
+      if (delta && i.date === cur.date && i.time && t2m(i.time) > oldM) { const n = t2m(i.time) + delta; if (n < 0 || n > 1439) bad = true; return {...i, time: m2t(Math.min(1439, Math.max(0, n)))}; }
+      return i; });
+    if (bad) return alert('Penyesuaian membuat jam kegiatan berikutnya melewati batas hari (00:00 - 23:59). Kurangi selisih waktunya.');
+    save(f, {itin}); return true; });
+  const inp = m && m.querySelector('#qh'); if (inp) { inp.focus(); inp.select(); }
 }
 
 let pf = {tid: null, day: 'all', fav: false, sx: 0};
@@ -990,14 +1131,10 @@ function tabPlan(t, el) {
   const pe = new Map(packAll(t).map(e => [e.key, e]));
   const card = i => { const c = acat(i), LS = i.lists || [], ld = LS.filter(l => (pe.get(nk(l.name)) || {}).done).length;
     return `<div class="ac cp" data-id="${i.id}"><span class="ib">${ic(aci(c), 18)}</span>
-    <div class="cm"><div class="ct2">${esc(i.title)}</div><div class="mu"><b class="tm3">${esc(i.time) || 'Tanpa jam'}</b> · ${c}${LS.length ? ` · <span class="ld">${ic(P.chk, 12)} ${ld}/${LS.length}</span>` : ''}${i.note ? ' · ' + NOTE : ''}</div></div>
-    <button class="ab ${i.fav ? 'fv' : ''}" data-a="fav" aria-label="Favorit">${i.fav ? icf(STAR) : ic(STAR)}</button><button class="ab" data-a="open" aria-label="Detail">${ic(P.ex, 18)}</button></div>`; };
-  el.innerHTML = `<div class="fl" id="fl"><button class="fb" data-f="all" aria-label="Semua kegiatan">${ic(GRID, 20)}</button><button class="fb" data-f="fav" aria-label="Favorit">${ic(STAR, 20)}</button>${dates.map(d => `<button class="fp" data-d="${d}">${dlab(t, d)}</button>`).join('')}</div><div id="pl"></div>`;
-  const fl = el.querySelector('#fl'), pl = el.querySelector('#pl');
+    <div class="cm"><div class="ct2">${esc(i.title)}</div><div class="mu"><b class="tm3 tmed" data-a="time" role="button" tabindex="0" title="Ubah jam">${esc(i.time) || 'Tanpa jam'}</b>${durOf(t, i) ? ' · ' + durOf(t, i) : ''} · ${c}${costSum(i) > 0 ? ' · ' + rp(costSum(i)) : ''}${LS.length ? ` · <span class="ld">${ic(P.chk, 12)} ${ld}/${LS.length}</span>` : ''}${i.note ? ' · ' + NOTE : ''}</div></div><button class="ab" data-a="edit" aria-label="Edit kegiatan" title="Edit">${PEN}</button></div>`; };
+  el.innerHTML = `<div id="pl"></div>`;
+  const pl = el.querySelector('#pl');
   const paint = () => {
-    fl.querySelector('[data-f=all]').classList.toggle('on', pf.day === 'all' && !pf.fav);
-    fl.querySelector('[data-f=fav]').classList.toggle('on', pf.fav);
-    fl.querySelectorAll('[data-d]').forEach(b => b.classList.toggle('on', b.dataset.d === pf.day));
     const L = t.itin.filter(i => (pf.day === 'all' || i.date === pf.day) && (!pf.fav || i.fav))
       .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '99:99').localeCompare(b.time || '99:99'));
     let html = '', last = null, sec = null;
@@ -1006,18 +1143,14 @@ function tabPlan(t, el) {
       if (pf.day === 'all' && dates.length > 1 && i.date !== last) { html += `<div class="dgh">${inTrip(t, i.date) || i.date < t.start ? dlab(t, i.date) + ' · ' : ''}${sd(i.date)}</div>`; last = i.date; } html += card(i); });
     pl.innerHTML = L.length ? html : `<p class="mu" style="text-align:center;margin:28px 0">${t.itin.length ? 'Tidak ada kegiatan yang cocok.' : 'Belum ada kegiatan.<br>Tekan tombol <b>+</b> untuk menambah kegiatan.'}</p>`;
   };
-  fl.onclick = e => { const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.f === 'all') { pf.day = 'all'; pf.fav = false; }
-    else if (b.dataset.f === 'fav') pf.fav = !pf.fav;
-    else if (b.dataset.d) pf.day = pf.day === b.dataset.d ? 'all' : b.dataset.d;
-    paint(); };
-  fl.onscroll = () => { pf.sx = fl.scrollLeft; };
   pl.onclick = e => { const c = e.target.closest('.ac'); if (!c) return;
     const it = t.itin.find(i => i.id === c.dataset.id); if (!it) return;
     const b = e.target.closest('[data-a]');
-    if (b && b.dataset.a === 'fav') save(t, {itin: t.itin.map(i => i.id === it.id ? {...i, fav: !i.fav} : i)});
-    else openDetail(t, it); };
-  paint(); fl.scrollLeft = pf.sx;
+    if (b && b.dataset.a === 'edit') editPlan(t, it);
+    else if (b && b.dataset.a === 'time') quickTime(t, it);
+    else if (b && b.dataset.a === 'fav') save(t, {itin: t.itin.map(i => i.id === it.id ? {...i, fav: !i.fav} : i)});
+    else openActRecap(t, it); };
+  paint();
 }
 
 // ---- Rencana: daftar perjalanan (level 1) ----
@@ -1066,15 +1199,84 @@ function renderPlans() {
   paint(); fl.scrollLeft = lf.sx;
 }
 
+// ---- Unduh PDF: rencana, biaya, dan packing list seluruh perjalanan ----
+const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load')); document.head.appendChild(el); });
+async function loadPdfLib() {
+  if (!(window.jspdf && window.jspdf.jsPDF)) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  if (!(window.jspdf && window.jspdf.jsPDF.API.autoTable)) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js');
+}
+async function exportPdf(t) {
+  await loadPdfLib();
+  const {jsPDF} = window.jspdf, doc = new jsPDF({unit: 'mm', format: 'a4'});
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 14, G = [31, 94, 59], MU = [95, 116, 102];
+  const days = dayDiff(t.end, t.start) + 1, tot = sum(t);
+  let y = 18;
+  const need = h => { if (y + h > H - 16) { doc.addPage(); y = 18; } };
+  const sec = title => { need(24); y += 4; doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...G); doc.text(title, M, y); y += 2; doc.setDrawColor(...G); doc.setLineWidth(0.4); doc.line(M, y, W - M, y); y += 5; };
+  const note = txt => { doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MU); doc.text(txt, M, y); y += 6; };
+  const tbl = o => { doc.autoTable({startY: y, margin: {left: M, right: M}, theme: 'striped', styles: {fontSize: 9, cellPadding: 2, textColor: [23, 48, 31]}, headStyles: {fillColor: G, textColor: 255}, footStyles: {fillColor: [234, 242, 228], textColor: [23, 48, 31], fontStyle: 'bold'}, ...o}); y = doc.lastAutoTable.finalY + 6; };
+
+  // Judul & ringkasan
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...G);
+  const tl = doc.splitTextToSize(t.name, W - 2 * M); doc.text(tl, M, y); y += tl.length * 8;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MU);
+  doc.text(`${t.dest} · ${fd(t.start)} - ${fd(t.end)} · ${days} hari`, M, y); y += 5;
+  doc.text(`Dibuat ${fd(todayISO())} · ${SLBL[stat(t)]}`, M, y); y += 4;
+  sec('Ringkasan');
+  tbl({body: [['Anggaran', rp(t.budget)], ['Realisasi biaya', rp(tot)], [t.budget && tot > t.budget ? 'Melebihi anggaran' : 'Sisa anggaran', t.budget ? rp(Math.abs(t.budget - tot)) : '-'], ['Jumlah kegiatan', String(t.itin.length)]],
+    theme: 'plain', styles: {fontSize: 10, cellPadding: 1.5, textColor: [23, 48, 31]}, columnStyles: {0: {cellWidth: 45, textColor: MU}, 1: {fontStyle: 'bold'}}});
+
+  // Rencana per hari
+  sec('Rencana Perjalanan');
+  const by = {}; t.itin.forEach(i => (by[i.date] = by[i.date] || []).push(i));
+  const ds = Object.keys(by).sort();
+  if (!ds.length) note('Belum ada kegiatan.');
+  ds.forEach(d => {
+    need(30); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(23, 48, 31);
+    doc.text((d < t.start ? 'Persiapan Keberangkatan' : inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : 'Setelah trip') + ' · ' + sd(d), M, y); y += 2;
+    const L = by[d].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+    tbl({head: [['Jam', 'Kegiatan', 'Kategori', 'Biaya']],
+      body: L.map(i => { const dur = durOf(t, i), nm = (i.lists || []).map(l => l.name).filter(Boolean);
+        return [i.time || '-', i.title + (dur ? ' (' + dur + ')' : '') + (i.note ? '\n' + i.note : '') + (nm.length ? '\nBawa: ' + nm.join(', ') : ''), acat(i), costSum(i) > 0 ? rp(costSum(i)) : '-']; }),
+      columnStyles: {0: {cellWidth: 16}, 2: {cellWidth: 26}, 3: {cellWidth: 28, halign: 'right'}}});
+  });
+
+  // Biaya
+  sec('Realisasi Biaya');
+  const rows = [...t.exp.map(x => [x.title, x.cat, rp(x.amt)]), ...costItems(t).map(({i, c}) => [c.name || i.title, 'Kegiatan: ' + i.title, rp(c.amt)])];
+  if (!rows.length) note('Belum ada realisasi biaya.');
+  else tbl({head: [['Keterangan', 'Kategori / Sumber', 'Jumlah']], body: rows, foot: [['Total', '', rp(tot)]], showFoot: 'lastPage', columnStyles: {2: {cellWidth: 34, halign: 'right'}}});
+
+  // Packing list
+  sec('Packing List');
+  const ents = packAll(t), pcats = [...LCAT, ...ents.map(e => e.cat)].filter((c, i, a) => a.indexOf(c) === i && ents.some(e => e.cat === c));
+  if (!ents.length) note('Daftar kosong.');
+  else { note(`${ents.filter(e => e.done).length} dari ${ents.length} barang sudah siap`);
+    pcats.forEach(c => { const g = ents.filter(e => e.cat === c); need(24);
+      tbl({head: [[c + ' (' + g.filter(e => e.done).length + '/' + g.length + ')', 'Dari kegiatan', 'Status']],
+        body: g.map(e => [e.title, e.uses.map(u => u.title).filter(Boolean).join(', ') || '-', e.done ? 'Siap' : 'Belum']),
+        columnStyles: {2: {cellWidth: 20}}}); }); }
+
+  // Footer tiap halaman
+  const n = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= n; p++) { doc.setPage(p); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...MU);
+    doc.text('Essentrip · ' + t.name, M, H - 8); doc.text('Halaman ' + p + ' / ' + n, W - M, H - 8, {align: 'right'}); }
+  doc.save('Essentrip - ' + (t.name.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Trip') + '.pdf');
+}
+
 // ---- Rencana: rincian satu perjalanan (level 2) ----
 function renderPlanDetail() {
   const t = getTrip();
   A.innerHTML = `<div class="dhd"><button class="hb" id="bk" aria-label="Kembali ke daftar perjalanan">${ic('<path d="m15 18-6-6 6-6"/>', 24)}</button>
-    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div></div><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
-    <div id="tb"></div><h2 class="sec" style="margin:22px 0 10px">Anggaran &amp; Realisasi Biaya</h2><div id="bd"></div><h2 class="sec" style="margin:22px 0 10px">Packing List</h2><div id="pk"></div>
+    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div></div><button class="hb" id="pdf" aria-label="Unduh PDF" title="Unduh PDF">${ic('<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', 22)}</button><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
+    <div class="pdg"><div class="pdl"><div id="tb"></div></div><div class="pdr"><h2 class="sec" style="margin:22px 0 10px">Anggaran &amp; Realisasi Biaya</h2><div id="bd"></div><h2 class="sec" style="margin:22px 0 10px">Packing List</h2><div id="pk"></div></div></div>
     <p style="text-align:center"><button class="del" id="dt">Hapus trip ini</button></p>`;
   $('#bk').onclick = () => { planOpen = false; render(); window.scrollTo(0, 0); };
   $('#dt').onclick = async () => { if (confirm('Hapus trip ini beserta isinya?')) { const id = t.id; cur = null; planOpen = false; await deleteDoc(tripRef(id)); } };
+  $('#pdf').onclick = async e => { const b = e.currentTarget; b.disabled = true;
+    try { await exportPdf(freshTrip(t.id) || t); }
+    catch (x) { alert(x && x.message === 'load' ? 'Gagal memuat pembuat PDF. Pastikan terhubung ke internet lalu coba lagi.' : 'Gagal membuat PDF: ' + (x && x.message)); }
+    finally { b.disabled = false; } };
   $('#et').onclick = () => editTrip(t);
   $('#dup').onclick = () => duplicateTrip(t);
   tabPlan(t, $('#tb')); tabCost(t, $('#bd')); tabPack(t, $('#pk'));
@@ -1122,19 +1324,19 @@ function tabCost(t, el) {
     <div class="bar"><i class="${over ? 'over' : ''}" style="width:${pct}%"></i></div>
     <div class="mu">${t.budget ? (over ? 'Melebihi anggaran ' + rp(tot - t.budget) : 'Sisa ' + rp(t.budget - tot)) : 'Anggaran belum diatur'}</div></div>
     <form class="card" id="cf"><b>Catat realisasi biaya</b><div class="row" style="margin-top:8px"><input id="n" placeholder="Keterangan" required></div>
-    <div class="row"><input id="a" type="number" min="0" placeholder="Jumlah (Rp)" required>
+    <div class="row"><input id="a" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Jumlah (Rp)" required>
     <select id="c">${CATS.map(c => `<option>${esc(c)}</option>`).join('')}</select><button type="button" class="ab" id="ck" aria-label="Kelola kategori">${PEN}</button></div>
     <div class="row"><button>Catat</button></div></form>
-    <div class="card">${t.exp.length ? t.exp.map(x => `<div class="item"><div class="t"><b>${esc(x.title)}</b><div class="mu">${esc(x.cat)}</div></div><span>${rp(x.amt)}</span><button class="del ed" data-e="${x.id}" aria-label="Edit">${PEN}</button><button class="del" data-x="${x.id}">✕</button></div>`).join('') : '<span class="mu">Belum ada realisasi biaya.</span>'}</div>`;
-  el.querySelector('#bg').onclick = () => openEdit('Atur anggaran', `<div class="mu">Anggaran trip</div><div class="row"><input id="bt" type="number" min="0" value="${t.budget || ''}" placeholder="Rp"></div>`, m => {
-    save(t, {budget: +m.querySelector('#bt').value || 0}); return true;
+    <div class="card">${t.exp.length || actCosts(t).length ? t.exp.map(x => `<div class="item"><div class="t"><b>${esc(x.title)}</b><div class="mu">${esc(x.cat)}</div></div><span>${rp(x.amt)}</span><button class="del ed" data-e="${x.id}" aria-label="Edit">${PEN}</button><button class="del" data-x="${x.id}">✕</button></div>`).join('') + costItems(t).map(({i, c}) => `<div class="item"><div class="t"><b>${esc(c.name) || esc(i.title)}</b><div class="mu">Dari kegiatan: ${esc(i.title)} · ${sd(i.date)}</div></div><span>${rp(c.amt)}</span></div>`).join('') + (actCosts(t).length ? '<div class="mu" style="margin-top:8px">Biaya dari kegiatan otomatis masuk realisasi. Ubah atau hapus lewat kegiatannya.</div>' : '') : '<span class="mu">Belum ada realisasi biaya.</span>'}</div>`;
+  el.querySelector('#bg').onclick = () => openEdit('Atur anggaran', `<div class="mu">Anggaran trip</div><div class="row"><input id="bt" class="rpi" type="text" inputmode="numeric" autocomplete="off" value="${t.budget ? rpFmt(t.budget) : ''}" placeholder="Rp"></div>`, m => {
+    save(t, {budget: rpNum(m.querySelector('#bt').value)}); return true;
   });
   el.querySelector('#ck').onclick = manageCats;
-  el.querySelector('#cf').onsubmit = e => { e.preventDefault(); save(t, {exp: [...t.exp, {id: uid(), title: el.querySelector('#n').value.trim(), amt: +el.querySelector('#a').value, cat: el.querySelector('#c').value}]}); };
+  el.querySelector('#cf').onsubmit = e => { e.preventDefault(); save(t, {exp: [...t.exp, {id: uid(), title: el.querySelector('#n').value.trim(), amt: rpNum(el.querySelector('#a').value), cat: el.querySelector('#c').value}]}); };
   el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => save(t, {exp: t.exp.filter(x => x.id !== b.dataset.x)}));
   el.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { const x = t.exp.find(q => q.id === b.dataset.e);
-    openEdit('Edit realisasi', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><input id="ea" type="number" min="0" value="${x.amt}" required><select id="ec">${(CATS.includes(x.cat) ? CATS : [...CATS, x.cat]).map(c => `<option ${c === x.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>`, m => {
-      save(t, {exp: t.exp.map(q => q.id === x.id ? {...x, title: m.querySelector('#en').value.trim(), amt: +m.querySelector('#ea').value, cat: m.querySelector('#ec').value} : q)}); return true;
+    openEdit('Edit realisasi', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><input id="ea" class="rpi" type="text" inputmode="numeric" autocomplete="off" value="${rpFmt(x.amt)}" required><select id="ec">${(CATS.includes(x.cat) ? CATS : [...CATS, x.cat]).map(c => `<option ${c === x.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>`, m => {
+      save(t, {exp: t.exp.map(q => q.id === x.id ? {...x, title: m.querySelector('#en').value.trim(), amt: rpNum(m.querySelector('#ea').value), cat: m.querySelector('#ec').value} : q)}); return true;
     }); });
 }
 
@@ -1170,7 +1372,7 @@ function duplicateTrip(t) {
     <div class="ck"><label><input type="checkbox" id="dk1" checked><span>Kegiatan (${t.itin.length})</span></label>
     <label><input type="checkbox" id="dk2" checked><span>Packing list (${packAll(t).length}, centang direset)</span></label>
     <label><input type="checkbox" id="dk3" checked><span>Anggaran (${rp(t.budget)})</span></label></div>
-    <div class="mu" style="margin-bottom:6px">Kegiatan ikut bergeser mengikuti tanggal mulai baru. Realisasi biaya tidak disalin.</div>`, m => {
+    <div class="mu" style="margin-bottom:6px">Kegiatan ikut bergeser mengikuti tanggal mulai baru. Biaya yang tertulis pada kegiatan ikut tersalin; realisasi biaya yang dicatat manual tidak disalin.</div>`, m => {
     const ns = d2iso(m.querySelector('#dsa').value), ne = d2iso(m.querySelector('#dse').value);
     if (!ns || !ne) return alert('Isi tanggal dengan format dd/mm/yyyy.');
     if (ne < ns) return alert('Tanggal selesai harus setelah tanggal mulai.');
@@ -1214,20 +1416,20 @@ function renderCal() {
   const lab = new Date(sel + 'T00:00').toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
   const sorted = sa;
   const gids = [...st.map(t => t.id), ...sorted.map(x => x.t.id).filter((id, k, a) => a.indexOf(id) === k && !st.some(t => t.id === id))];
-  const arow = ({t, i}) => `<div class="ac cp" data-it="${i.id}" data-t="${t.id}"><span class="ib">${ic(aci(acat(i)), 18)}</span><div class="cm"><div class="ct2">${esc(i.title)}</div><div class="mu"><b class="tm3">${esc(i.time) || 'Tanpa jam'}</b> · ${acat(i)}</div></div></div>`;
+  const arow = ({t, i}) => `<div class="ac cp" data-it="${i.id}" data-t="${t.id}"><span class="ib">${ic(aci(acat(i)), 18)}</span><div class="cm"><div class="ct2">${esc(i.title)}</div><div class="mu"><b class="tm3">${esc(i.time) || 'Tanpa jam'}</b>${durOf(t, i) ? ' · ' + durOf(t, i) : ''} · ${acat(i)}</div></div></div>`;
   const grow = id => { const t = trips.find(x => x.id === id), acts = sorted.filter(x => x.t.id === id), key = sel + '|' + id, open = !!cal.exp[key] && acts.length > 0;
     const inR = sel >= t.start && sel <= t.end, n = dayDiff(sel, t.start) + 1, tot = dayDiff(t.end, t.start) + 1;
     const meta = [esc(t.dest), inR ? `Hari ${n} dari ${tot}` : '', sel === t.start ? 'Mulai' : '', sel === t.end ? 'Selesai' : '', acts.length ? acts.length + ' kegiatan' : ''].filter(Boolean).join(' · ');
     return `<div class="tg${open ? ' open' : ''}" data-key="${key}"><div class="ac cp" ${acts.length ? 'data-tg' : `data-tr="${t.id}"`}><span class="ib">${ic(P.pin, 18)}</span><div class="cm"><div class="ct2">${esc(t.name)}</div><div class="mu">${meta}</div></div>${acts.length ? `<span class="chv">${ic('<path d="m9 18 6-6-6-6"/>', 18)}</span>` : ''}</div>
       ${acts.length ? `<div class="tgb"${open ? '' : ' hidden'}>${acts.map(arow).join('')}<button class="ghost sm go" data-tr="${t.id}">Buka rencana trip</button></div>` : ''}</div>`; };
-  A.innerHTML = `<div class="calh"><button class="hb" id="calp" aria-label="Bulan sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 22)}</button>
+  A.innerHTML = `<div class="calw"><div class="calL"><div class="calh"><button class="hb" id="calp" aria-label="Bulan sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 22)}</button>
     <h2 class="sec">${new Date(y, m, 1).toLocaleDateString('id-ID', {month: 'long', year: 'numeric'})}</h2>
     <button class="ghost sm" id="calt">Hari ini</button>
     <button class="hb" id="caln" aria-label="Bulan berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 22)}</button></div>
-    <div class="cgw"><div class="cg">${CAL_DAYS.map(d => `<div class="cwd">${d}</div>`).join('')}${cells}</div></div>
-    <div class="dgh" style="margin-top:4px;color:var(--tx);font-size:calc(14px*var(--fs,1))">${lab}</div>
+    <div class="cgw"><div class="cg">${CAL_DAYS.map(d => `<div class="cwd">${d}</div>`).join('')}${cells}</div></div></div>
+    <div class="calR"><div class="dgh" style="margin-top:4px;color:var(--tx);font-size:calc(14px*var(--fs,1))">${lab}</div>
     ${gids.length ? '<div class="dgh">Perjalanan</div>' + gids.map(grow).join('') : ''}
-    ${!gids.length ? '<p class="mu" style="text-align:center;margin:20px 0">Tidak ada trip atau kegiatan pada hari ini.</p>' : ''}`;
+    ${!gids.length ? '<p class="mu" style="text-align:center;margin:20px 0">Tidak ada trip atau kegiatan pada hari ini.</p>' : ''}</div></div>`;
   const go = (yy, mm) => { cal.y = yy; cal.m = mm; const k = `${yy}-${String(mm + 1).padStart(2, '0')}`; cal.sel = today.slice(0, 7) === k ? today : k + '-01'; renderCal(); };
   $('#calp').onclick = () => { const d = new Date(y, m - 1, 1); go(d.getFullYear(), d.getMonth()); };
   $('#caln').onclick = () => { const d = new Date(y, m + 1, 1); go(d.getFullYear(), d.getMonth()); };
@@ -1242,7 +1444,7 @@ const RELEASE = '2026-10-16';
 function renderSet() {
   const age = Math.max(0, dayDiff(todayISO(), RELEASE));
   const dk = document.documentElement.dataset.theme === 'dark';
-  A.innerHTML = `<div class="card st"><h3>Tampilan</h3>
+  A.innerHTML = `<div class="sgrid"><div class="card st"><h3>Tampilan</h3>
     <div class="lb">Mode</div>
     <div class="seg"><button data-th="light" class="${dk ? '' : 'on'}">${ic(P.sun, 18)}Terang</button><button data-th="dark" class="${dk ? 'on' : ''}">${ic(P.moon, 18)}Gelap</button></div>
     <div class="lb" style="display:flex;align-items:baseline;gap:8px"><span style="flex:1">Ukuran font</span><b class="fslab" style="color:var(--tx)">${fszTxt()}</b><a href="#" id="fsn">Normal</a></div>
@@ -1255,7 +1457,7 @@ function renderSet() {
     <p>Essentrip adalah aplikasi perencanaan perjalanan yang membantu Anda menyiapkan trip dengan rapi, dari daftar perjalanan sampai hari keberangkatan. Tujuannya membuat persiapan lebih ringan dan semua kebutuhan perjalanan ada di satu tempat.</p>
     <p>Aplikasi ini memadukan rencana kegiatan per hari, catatan pengeluaran terhadap budget, dan packing list, sehingga Anda bisa memantau persiapan trip dengan mudah.</p>
     <div class="abt"><div><span>Tanggal rilis</span><b>${fd(RELEASE)}</b></div><div><span>Masa rilis</span><b>${age === 0 ? 'Hari ini' : age + ' hari'}</b></div></div></div>
-  <p class="mu" style="text-align:center">Essentrip v1</p>`;
+  </div><p class="mu" style="text-align:center">Essentrip v1</p>`;
   A.querySelectorAll('[data-th]').forEach(b => b.onclick = () => setTheme(b.dataset.th));
   $('#fsr').oninput = e => setFs(e.target.value);
   $('#fsn').onclick = e => { e.preventDefault(); setFs('1'); };
@@ -1266,20 +1468,23 @@ function renderSet() {
 function tabPack(t, el) {
   const ents = packAll(t), d = ents.filter(e => e.done).length;
   const cats = [...LCAT, ...ents.map(e => e.cat)].filter((c, i, a) => a.indexOf(c) === i && ents.some(e => e.cat === c));
+  if (!cats.includes(packCat)) packCat = cats[0];
+  const ci = Math.max(0, cats.indexOf(packCat));
   const row = e => { const own = !e.uses.length, u = e.uses.map(x => x.title).filter(Boolean);
     return `<div class="item"><input type="checkbox" data-c="${esc(e.key)}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(e.title)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${esc(e.title)}</span>${u.length ? `<span class="mu">Dari kegiatan: ${esc(u.slice(0, 2).join(', '))}${u.length > 2 ? ' +' + (u.length - 2) + ' lagi' : ''}</span>` : ''}</span>${own ? `<button class="del ed" data-e="${esc(e.key)}" aria-label="Edit">${PEN}</button><button class="del" data-x="${esc(e.key)}" aria-label="Hapus">✕</button>` : ''}</div>`; };
   el.innerHTML = `<form class="card" id="f"><div class="row"><input id="pn" placeholder="Barang yang dibawa" required></div>
     <div class="row"><select id="pc">${catOpts(t, lastCat)}</select><button style="flex:0 0 90px">Tambah</button></div>
     <div class="row"><input id="pcn" placeholder="Nama kategori baru" maxlength="30"></div></form>
-    <div class="card"><div class="mu">${d}/${ents.length} siap</div><div class="bar"><i style="width:${ents.length ? d / ents.length * 100 : 0}%"></i></div>${ents.length ? cats.map(c => { const g = ents.filter(e => e.cat === c);
-      return `<div class="lgh"><span>${esc(c)}</span><span class="lgc">${g.filter(e => e.done).length}/${g.length}</span></div>` + (showChecked ? g : g.filter(e => !e.done)).map(row).join(''); }).join('') + (d === ents.length && !showChecked ? '<div class="mu" style="margin:10px 0">Semua barang sudah siap ✓</div>' : '') + (d ? `<div class="mu" style="margin-top:10px"><a href="#" id="psh">${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${d} yang sudah dicentang</a></div>` : '') + '<div class="mu" style="margin-top:8px">Barang dari list kegiatan otomatis muncul di sini; nama yang sama hanya tampil satu kali. Ubah atau hapus lewat kegiatannya.</div>' : '<span class="mu">Daftar kosong.</span>'}</div>`;
+    <div class="card"><div class="mu">${d}/${ents.length} siap</div><div class="bar"><i style="width:${ents.length ? d / ents.length * 100 : 0}%"></i></div>${ents.length ? [cats[ci]].map(c => { const g = ents.filter(e => e.cat === c), vis = showChecked ? g : g.filter(e => !e.done), nd = g.filter(e => e.done).length;
+      return `<div class="lgh lgn">${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${nd}/${g.length}</span></span>${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + vis.map(row).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : ''); }).join('') + (d === ents.length && !showChecked ? '<div class="mu" style="margin:10px 0">Semua barang sudah siap ✓</div>' : '') + (d ? `<div class="mu" style="margin-top:10px"><a href="#" id="psh">${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${d} yang sudah dicentang</a></div>` : '') + '<div class="mu" style="margin-top:8px">Barang dari list kegiatan otomatis muncul di sini; nama yang sama hanya tampil satu kali. Ubah atau hapus lewat kegiatannya.</div>' : '<span class="mu">Daftar kosong.</span>'}</div>`;
   catPick(el.querySelector('#pc'), el.querySelector('#pcn'));
+  el.querySelectorAll('[data-pnv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.pnv]; if (n) { packCat = n; tabPack(freshTrip(t.id) || t, el); } });
   const psh = el.querySelector('#psh'); if (psh) psh.onclick = e => { e.preventDefault(); showChecked = !showChecked; tabPack(freshTrip(t.id) || t, el); };
   el.querySelector('#f').onsubmit = e => { e.preventDefault();
     const nm = el.querySelector('#pn').value.trim(), ct = readCat(el.querySelector('#pc'), el.querySelector('#pcn'));
     if (!nm) return; if (!ct) return alert('Isi nama kategori baru.');
     if (ents.some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di packing list.');
-    lastCat = ct; refocus = '#pn'; save(t, {pack: [...t.pack, {id: uid(), title: nm, cat: ct, done: false}]}); };
+    lastCat = ct; packCat = ct; refocus = '#pn'; save(t, {pack: [...t.pack, {id: uid(), title: nm, cat: ct, done: false}]}); };
   el.querySelectorAll('[data-c]').forEach(c => c.onchange = () => togglePack(t.id, c.dataset.c, c.checked));
   el.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const pack = t.pack.filter(p => nk(p.title) !== b.dataset.x); save(t, {pack, pdone: keepDone(t, t.itin, pack)}); });
   el.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { const x = ents.find(q => q.key === b.dataset.e); if (!x) return;
