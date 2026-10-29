@@ -798,7 +798,7 @@ function renderList() {
       <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${fd(t.start)} – ${fd(t.end)}</span></div>
       <div class="chips"><span class="chip on">${lbl[s]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}</div>
       <div class="mu">Biaya ${rp(tot)} / ${rp(t.budget)}</div><div class="bar"><i class="${t.budget && tot > t.budget ? 'over' : ''}" style="width:${pct}%"></i></div>
-      <div class="acts"><button class="ab" data-go="plan" aria-label="Rencana">${ic(P.cal)}</button><button class="ab" data-go="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-go="pack" aria-label="Packing">${ic(P.chk)}</button><span class="sp"></span><button class="ab" data-rm aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`;
+      <div class="acts"><button class="ab" data-go="plan" aria-label="Rencana">${ic(P.cal)}</button><button class="ab" data-go="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-go="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-dup aria-label="Duplikat perjalanan" title="Duplikat">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-rm aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`;
   };
   A.innerHTML = `<div class="hero">
     <div class="tiles"><div class="tile"><b>${c.up}</b><span>akan datang</span></div><div class="tile"><b>${c.on}</b><span>berlangsung</span></div><div class="tile"><b>${c.done}</b><span>selesai</span></div></div></div>
@@ -807,6 +807,7 @@ function renderList() {
     el.onclick = () => { cur = id; page = 'plan'; planOpen = true; render(); window.scrollTo(0, 0); };
     el.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id), b.dataset.go); });
     el.querySelector('[data-ex]').onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id)); };
+    el.querySelector('[data-dup]').onclick = e => { e.stopPropagation(); duplicateTrip(trips.find(x => x.id === id)); };
     el.querySelector('[data-rm]').onclick = async e => { e.stopPropagation(); if (confirm('Hapus trip ini beserta isinya?')) { if (cur === id) cur = null; await deleteDoc(tripRef(id)); } };
   });
 }
