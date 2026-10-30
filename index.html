@@ -55,6 +55,7 @@ main{padding-bottom:120px}
 .hero{background:var(--hero);border-radius:20px;padding:14px;text-align:center;margin-bottom:18px}
 .hero h2{font-family:Georgia,"Times New Roman",serif;font-size:calc(26px*var(--fs,1));margin:0 0 6px}.hero p{color:var(--mu);margin:0 auto 16px;max-width:260px;font-size:calc(14px*var(--fs,1))}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.tile{background:var(--tile);border-radius:14px;padding:12px 4px}
+.tile.tf{cursor:pointer;border:2px solid transparent;transition:border-color .15s,background .15s}.tile.tf:hover{border-color:var(--bd)}.tile.tf.act{border-color:var(--g)}
 .tile b{display:block;font-family:Georgia,"Times New Roman",serif;font-size:calc(28px*var(--fs,1))}.tile span{font-size:calc(12px*var(--fs,1));color:var(--mu)}
 h2.sec{font-family:Georgia,"Times New Roman",serif;font-size:calc(19px*var(--fs,1));margin:6px 0 12px}
 .tc{cursor:pointer}.tch{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -645,6 +646,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !fzp.hidde
 setFs(fsv);
 const todayISO = () => new Date().toLocaleDateString('sv');
 const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
+// status mingguan (Senin–Minggu): 'on' = trip yang tanggalnya bersinggungan dengan minggu ini, 'up' = mulai setelah minggu ini, 'done' = berakhir sebelum minggu ini
+const wstat = t => { const d = new Date(todayISO() + 'T00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); const mon = d.toLocaleDateString('sv'); d.setDate(d.getDate() + 6); const sun = d.toLocaleDateString('sv');
+  return t.end < mon ? 'done' : t.start > sun ? 'up' : 'on'; };
 const stat = t => { const n = todayISO(); return n < t.start ? 'up' : n > t.end ? 'done' : 'on'; };
 
 let user = null, trips = [], cur = null, page = 'trips', unsub = null, authMode = 'login', planOpen = false;
@@ -786,23 +790,27 @@ function openRecap(t, k) {
   if (k) o.querySelector('#rk').onclick = () => { o.remove(); cur = t.id; planOpen = true; page = 'plan'; render(); k === 'pack' ? $('#pk')?.scrollIntoView() : k === 'cost' ? $('#bd')?.scrollIntoView() : window.scrollTo(0, 0); };
 }
 
+let listFilter = null; // filter daftar trip dari kotak statistik: 'up' | 'on' | 'done' | null (semua)
 function renderList() {
-  const c = {on: 0, up: 0, done: 0}; trips.forEach(t => c[stat(t)]++);
+  const c = {on: 0, up: 0, done: 0}; trips.forEach(t => c[wstat(t)]++);
   const ord = {on: 0, up: 1, done: 2}, lbl = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai'};
-  const list = [...trips].sort((a, b) => ord[stat(a)] - ord[stat(b)] || (stat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
+  if (listFilter && !c[listFilter]) listFilter = null;
+  const list = [...trips].filter(t => !listFilter || wstat(t) === listFilter).sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
   const card = t => {
-    const s = stat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1, tot = sum(t), pct = t.budget ? Math.min(100, tot / t.budget * 100) : 0;
+    const s = stat(t), w = wstat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1, tot = sum(t), pct = t.budget ? Math.min(100, tot / t.budget * 100) : 0;
     const cd = s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
     return `<div class="card tc" data-open="${t.id}">
       <div class="tch"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab" data-ex aria-label="Rekap">${ic(P.ex, 20)}</button></div>
       <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${fd(t.start)} – ${fd(t.end)}</span></div>
-      <div class="chips"><span class="chip on">${lbl[s]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}</div>
+      <div class="chips"><span class="chip on">${lbl[w]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}</div>
       <div class="mu">Biaya ${rp(tot)} / ${rp(t.budget)}</div><div class="bar"><i class="${t.budget && tot > t.budget ? 'over' : ''}" style="width:${pct}%"></i></div>
       <div class="acts"><button class="ab" data-go="plan" aria-label="Rencana">${ic(P.cal)}</button><button class="ab" data-go="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-go="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-dup aria-label="Duplikat perjalanan" title="Duplikat">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-rm aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`;
   };
   A.innerHTML = `<div class="hero">
-    <div class="tiles"><div class="tile"><b>${c.up}</b><span>akan datang</span></div><div class="tile"><b>${c.on}</b><span>berlangsung</span></div><div class="tile"><b>${c.done}</b><span>selesai</span></div></div></div>
-    <h2 class="sec">Perjalanan kamu</h2>` + (list.length ? '<div class="cgrid">' + list.map(card).join('') + '</div>' : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
+    <div class="tiles">${[['on', 'berlangsung'], ['up', 'akan datang'], ['done', 'selesai']].map(([k, l]) => `<div class="tile tf ${listFilter === k ? 'act' : ''}" role="button" tabindex="0" data-f="${k}" aria-pressed="${listFilter === k}" aria-label="Tampilkan trip ${l}"><b>${c[k]}</b><span>${l}</span></div>`).join('')}</div></div>
+    <h2 class="sec">Perjalanan kamu${listFilter ? ' · ' + lbl[listFilter] : ''}</h2>` + (list.length ? '<div class="cgrid">' + list.map(card).join('') + '</div>' : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
+  A.querySelectorAll('[data-f]').forEach(b => { const go = () => { listFilter = listFilter === b.dataset.f ? null : b.dataset.f; renderList(); };
+    b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
   A.querySelectorAll('.tc').forEach(el => { const id = el.dataset.open;
     el.onclick = () => { cur = id; page = 'plan'; planOpen = true; render(); window.scrollTo(0, 0); };
     el.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id), b.dataset.go); });
@@ -853,6 +861,7 @@ const mapUrl = (t, i) => 'https://www.google.com/maps/search/?api=1&query=' + en
 const LCAT = ['Elektronik', 'Baju', 'Barang', 'Makanan', 'Lainnya'];
 const nk = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const freshTrip = id => trips.find(x => x.id === id);
+let sugOpen = false; // panel rekomendasi packing: default tersembunyi
 let lastCat = 'Barang', showChecked = false, packCat = null, packQ = ''; // barang yang sudah dicentang disembunyikan otomatis
 // Gabungkan item packing manual + semua list kegiatan; nama yang sama (tanpa beda huruf besar/kecil) dihitung satu barang.
 const renPo = (t, o, n) => (t.porder || []).map(k => k === o ? n : k); // posisi urutan ikut pindah saat barang diganti nama
@@ -891,8 +900,11 @@ function togglePack(tid, key, on) {
   return save(t, {pack: (t.pack || []).map(p => nk(p.title) === key ? {...p, done: on} : p), pdone: [...s]});
 }
 function catOpts(t, cur) {
-  const all = [...LCAT]; packAll(t).forEach(e => { if (!all.includes(e.cat)) all.push(e.cat); });
-  if (cur && !all.includes(cur)) all.push(cur);
+  const all = [...LCAT]; // kategori bawaan + kategori dari semua trip (juga yang pernah ditambahkan sebelumnya) ikut muncul di trip baru
+  let sv = []; try { const a = JSON.parse(localStorage.getItem('et-pcats')); if (Array.isArray(a)) sv = a.map(String); } catch {}
+  const add = c => { if (c && c !== '__new' && !all.includes(c)) all.push(c); };
+  sv.forEach(add); (trips || []).forEach(x => packAll(x).forEach(e => add(e.cat))); packAll(t).forEach(e => add(e.cat)); add(cur);
+  try { localStorage.setItem('et-pcats', JSON.stringify(all.filter(c => !LCAT.includes(c)))); } catch {}
   return all.map(c => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('') + '<option value="__new">＋ Kategori baru…</option>';
 }
 function catPick(sel, inp) { // tampilkan kolom nama kategori baru bila dipilih
@@ -1292,13 +1304,13 @@ const SLBL = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai'};
 let lf = {q: '', st: 'all', fav: false, sx: 0};
 function renderPlans() {
   const ord = {on: 0, up: 1, done: 2};
-  const card = t => { const s = stat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1;
+  const card = t => { const s = stat(t), w = wstat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1;
     const cd = s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
     return `<div class="ac tcl" data-id="${t.id}">
     <div class="ach"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab" data-a="open" aria-label="Buka perjalanan">${ic(P.ex, 20)}</button></div>
     <div class="ar"><button class="ab ${t.fav ? 'fv' : ''}" data-a="fav" aria-label="Favorit">${t.fav ? icf(STAR) : ic(STAR)}</button><button class="ab" data-a="map" aria-label="Buka tujuan di peta">${ic(NAVI)}</button></div>
     <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${fd(t.start)} – ${fd(t.end)}</span></div>
-    <div class="chips"><span class="chip on">${SLBL[s]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}<span class="chip">${t.itin.length} kegiatan</span></div>
+    <div class="chips"><span class="chip on">${SLBL[w]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}<span class="chip">${t.itin.length} kegiatan</span></div>
     <div class="ar bt"><button class="ab" data-a="open" aria-label="Rencana">${ic(P.cal)}</button><span class="vd"></span><button class="ab" data-a="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-a="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-a="edit" aria-label="Edit perjalanan">${PEN}</button><button class="ab" data-a="dup" aria-label="Duplikat perjalanan">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-a="del" aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`; };
   A.innerHTML = `<div class="fl" id="fl"><button class="fb" data-f="all" aria-label="Semua perjalanan">${ic(GRID, 20)}</button><button class="fb" data-f="fav" aria-label="Favorit">${ic(STAR, 20)}</button>${Object.keys(SLBL).map(k => `<button class="fp" data-s="${k}">${SLBL[k]}</button>`).join('')}</div>
     <div class="sb">${ic(SRCH, 20)}<input id="sq" type="search" placeholder="Cari nama perjalanan" value="${esc(lf.q)}" autocomplete="off"></div><div id="pl"></div>`;
@@ -1308,8 +1320,8 @@ function renderPlans() {
     fl.querySelector('[data-f=fav]').classList.toggle('on', lf.fav);
     fl.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === lf.st));
     const q = lf.q.trim().toLowerCase();
-    const L = trips.filter(t => (lf.st === 'all' || stat(t) === lf.st) && (!lf.fav || t.fav) && (!q || (t.name + ' ' + t.dest).toLowerCase().includes(q)))
-      .sort((a, b) => ord[stat(a)] - ord[stat(b)] || (stat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
+    const L = trips.filter(t => (lf.st === 'all' || wstat(t) === lf.st) && (!lf.fav || t.fav) && (!q || (t.name + ' ' + t.dest).toLowerCase().includes(q)))
+      .sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
     pl.innerHTML = L.length ? L.map(card).join('') : `<p class="mu" style="text-align:center;margin:28px 0">${trips.length ? 'Tidak ada perjalanan yang cocok.' : 'Belum ada trip.<br>Tekan tombol <b>+</b> untuk membuat trip pertama.'}</p>`;
   };
   fl.onclick = e => { const b = e.target.closest('button'); if (!b) return;
@@ -1780,11 +1792,37 @@ function tabPack(t, el) {
     return `<div class="item" data-pk="${esc(e.key)}">${noGrip ? '' : `<span class="gr" data-gr role="button" aria-label="Geser untuk mengurutkan" title="Geser untuk mengurutkan">${ic('<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>', 18)}</span>`}<input type="checkbox" data-c="${esc(e.key)}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(e.title)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${!loc && !/pouch/i.test(e.cat) ? `<span class="rdot" data-sd="${esc(e.key)}" role="button" tabindex="0" title="Belum masuk storage — ketuk untuk memilih" aria-label="Belum masuk storage, ketuk untuk memilih storage"></span>` : ''}${esc(e.title)}</span>${u.length ? `<span class="mu">Dari kegiatan: ${esc(u.slice(0, 2).join(', '))}${u.length > 2 ? ' +' + (u.length - 2) + ' lagi' : ''}</span>` : ''}${loc ? `<span class="mu">Disimpan di: ${esc(loc)}</span>` : ''}</span>${own ? `<button class="del ed" data-e="${esc(e.key)}" aria-label="Edit">${PEN}</button><button class="del" data-x="${esc(e.key)}" aria-label="Hapus">✕</button>` : `<button class="del ed" data-ec="${esc(e.key)}" aria-label="Ubah kategori" title="Ubah kategori">${PEN}</button>`}</div>`; };
   el.innerHTML = `<form class="card" id="f"><div class="row"><input id="pn" placeholder="Nama barang" required style="flex:1 1 0"><select id="pc" style="flex:0 0 104px">${catOpts(t, lastCat)}</select><button style="flex:0 0 76px;padding-left:8px;padding-right:8px">Tambah</button></div>
     <div class="row"><input id="pcn" placeholder="Nama kategori baru" maxlength="30"></div></form>
+    <div class="card" id="psug" style="display:none"></div>
     <div class="sb">${ic(SRCH, 20)}<input id="psq" type="search" placeholder="Cari checklist barang" value="${esc(packQ)}" autocomplete="off"></div>
     <div class="card" id="psr" style="display:none"></div>
     <div class="card" id="pmain"><div class="mu">${d}/${ents.length} siap</div><div class="bar"><i style="width:${ents.length ? d / ents.length * 100 : 0}%"></i></div>${ents.length ? [cats[ci]].map(c => { const g = ents.filter(e => e.cat === c), vis = showChecked ? g : g.filter(e => !e.done), nd = g.filter(e => e.done).length;
       return `<div class="lgh lgn">${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${nd}/${g.length}</span></span>${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + vis.map(e => row(e)).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : ''); }).join('') + (d === ents.length && !showChecked ? '<div class="mu" style="margin:10px 0">Semua barang sudah siap ✓</div>' : '') + (d ? `<div class="mu" style="margin-top:10px"><a href="#" id="psh">${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${d} yang sudah dicentang</a></div>` : '') : '<span class="mu">Daftar kosong.</span>'}</div>`;
   catPick(el.querySelector('#pc'), el.querySelector('#pcn'));
+  // rekomendasi barang dari trip sebelumnya untuk kategori yang dipilih; dicentang = masuk ke list trip ini
+  const sgGet = k => { try { return JSON.parse(localStorage.getItem(k)) || null; } catch { return null; } }, sgSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const sugPaint = () => { const box = el.querySelector('#psug'), c = el.querySelector('#pc').value, have = new Set(ents.map(x => x.key)), seen = new Set(), out = [], hid = new Set(sgGet('et-sughide') || []), ren = sgGet('et-sugren') || {};
+    if (c && c !== '__new') (trips || []).forEach(x => { if (x.id === t.id) return; packAll(x).forEach(e => { const sk = c + '|' + e.key, ti = ren[sk] || e.title, nkey = nk(ti); if (e.cat === c && !hid.has(sk) && !have.has(nkey) && !seen.has(nkey)) { seen.add(nkey); out.push({...e, sk, title: ti, key: nkey}); } }); });
+    if (!out.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    box.innerHTML = `<div class="sugh" role="button" tabindex="0" aria-expanded="${sugOpen}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="mu"><b>Rekomendasi dari trip sebelumnya · ${esc(c)}</b></span><span class="lnav" aria-hidden="true">${ic(sugOpen ? '<path d="m18 15-6-6-6 6"/>' : '<path d="m6 9 6 6 6-6"/>', 20)}</span></div>` + (!sugOpen ? '' : '<div style="margin-top:6px">' + out.map(e => `<div class="item"><input type="checkbox" data-sg="${esc(e.key)}" aria-label="Tambahkan ${esc(e.title)}"><span class="t"><span class="tt" data-sgt="${esc(e.key)}">${esc(e.title)}</span></span><button type="button" class="del ed" data-sge="${esc(e.key)}" aria-label="Ganti nama" title="Ganti nama">${PEN}</button><button type="button" class="del" data-sgx="${esc(e.key)}" aria-label="Hapus dari rekomendasi" title="Hapus dari rekomendasi">✕</button></div>`).join('') + '</div>');
+    const gh = box.querySelector('.sugh'); gh.onclick = () => { sugOpen = !sugOpen; sugPaint(); }; gh.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); gh.onclick(); } };
+    // hapus dari rekomendasi (hanya menyembunyikan di daftar ini; trip lama tidak berubah)
+    box.querySelectorAll('[data-sgx]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const e = out.find(q => q.key === b.dataset.sgx); if (!e) return;
+      sgSet('et-sughide', [...new Set([...(sgGet('et-sughide') || []), e.sk])]); sugPaint(); });
+    // ganti nama rekomendasi (tombol pensil atau klik 2x nama); trip lama tidak berubah
+    const sgRename = (span, e) => { const inp = document.createElement('input'); inp.value = e.title; inp.maxLength = 60; inp.setAttribute('aria-label', 'Ganti nama barang'); inp.style.cssText = 'padding:4px 8px;width:100%';
+      span.replaceWith(inp); inp.focus(); inp.select(); let fin = false;
+      const end = ok => { if (fin) return; fin = true; const nm = inp.value.trim();
+        if (ok && nm && nm !== e.title) { if (nk(nm) !== e.key && (have.has(nk(nm)) || out.some(q => q.key === nk(nm)))) { alert('Barang ini sudah ada di packing list atau rekomendasi.'); } else { const r = sgGet('et-sugren') || {}; r[e.sk] = nm; sgSet('et-sugren', r); sugPaint(); return; } }
+        if (inp.isConnected) inp.replaceWith(span); };
+      inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); end(true); } else if (ev.key === 'Escape') end(false); };
+      inp.onblur = () => end(true); };
+    box.querySelectorAll('[data-sge]').forEach(b => b.onclick = ev => { ev.stopPropagation(); const e = out.find(q => q.key === b.dataset.sge), tt = b.closest('.item').querySelector('.tt'); if (e && tt) sgRename(tt, e); });
+    box.querySelectorAll('[data-sgt]').forEach(tt => { const e = out.find(q => q.key === tt.dataset.sgt); if (!e) return; let last = 0; tt.onclick = () => { const n = Date.now(); if (n - last < 400) { last = 0; sgRename(tt, e); } else last = n; }; });
+    box.querySelectorAll('[data-sg]').forEach(b => b.onchange = () => { if (!b.checked) return;
+      const e = out.find(q => q.key === b.dataset.sg), f = freshTrip(t.id) || t; if (!e || packAll(f).some(q => q.key === e.key)) return;
+      lastCat = c; packCat = c; save(f, {pack: [...(f.pack || []), {id: uid(), title: e.title, cat: c, done: false}]}); }); };
+  el.querySelector('#pc').addEventListener('change', sugPaint); sugPaint();
   el.querySelectorAll('[data-pnv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.pnv]; if (n) { packCat = n; tabPack(freshTrip(t.id) || t, el); } });
   const psh = el.querySelector('#psh'); if (psh) psh.onclick = e => { e.preventDefault(); showChecked = !showChecked; tabPack(freshTrip(t.id) || t, el); };
   el.querySelector('#f').onsubmit = e => { e.preventDefault();
