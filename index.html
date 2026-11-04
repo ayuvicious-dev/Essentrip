@@ -45,10 +45,12 @@ main{padding-bottom:120px}
 #fab{position:relative;top:-22px;flex:none;margin:0 4px;width:54px!important;height:54px;border-radius:50%;padding:0;font-size:calc(28px*var(--fs,1));line-height:1;background:var(--btn);box-shadow:0 4px 14px rgba(23,48,31,.35);border:3px solid var(--card)}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
 .sheet{background:var(--card);width:100%;max-width:420px;border-radius:20px;padding:18px;margin:auto;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.qb{color:var(--g);font-weight:700;font-size:.92em;margin-left:4px}
 .df{position:relative;flex:1;min-width:0}.df .dt,.df .tm{padding-right:44px}
 .cal,.clk{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:36px!important;height:34px;padding:0!important;background:transparent!important;color:var(--tx)!important;display:flex;align-items:center;justify-content:center}
 .dp,.tp{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;padding:0;border:0}
 .del.ed{color:var(--g)}.del{display:inline-flex;align-items:center}
+button.del svg{color:#000}[data-theme=dark] button.del svg{color:var(--tx)} /* ikon hapus (tempat sampah) hitam; di mode gelap mengikuti warna teks agar tetap terlihat */
 .gr{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:34px;margin-left:-6px;color:var(--mu);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .item.dragging{position:relative;z-index:8;background:var(--card);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.28);cursor:grabbing}.item.dragging .gr{cursor:grabbing;color:var(--g)}
 .hb{width:auto;background:transparent;color:var(--tx);padding:6px;display:inline-flex}
@@ -161,6 +163,7 @@ input,select,button,textarea{padding:9px 12px}
 .mapn{width:22px;height:22px;border-radius:50%;background:#e53935;color:#fff;font:700 12px/22px sans-serif;text-align:center;flex:none}
 .mapi{width:36px;height:36px;padding:0;flex:none;background:var(--chip);color:var(--g);display:flex;align-items:center;justify-content:center;border-radius:10px}
 .mapx{background:none;color:var(--g);width:auto;padding:2px 6px;font-size:calc(12px*var(--fs,1));border:0}
+header .hb.on{background:var(--chip);color:var(--g);border-radius:10px}
 .maph .hb.on{background:var(--chip);color:var(--g);border-radius:10px}
 .mapq{display:flex;align-items:center;gap:6px;margin-bottom:6px}.mapq input{flex:1;min-width:0;padding:8px 10px}
 .mapo{display:block;width:100%;text-align:left;margin-top:4px;font-weight:500;font-size:calc(12px*var(--fs,1));overflow-wrap:anywhere;color:var(--tx);background:var(--card);border:1px solid var(--bd);padding:7px 10px}
@@ -225,6 +228,13 @@ main>#pl>p{grid-column:1/-1}
   .pdr>h2:first-child{margin-top:0!important}
   .calw{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
   .cd{min-height:78px}
+  .pph{display:flex;gap:12px;align-items:stretch;margin-bottom:12px}
+  .pph>form{flex:3 1 0;min-width:0;margin-bottom:0}
+  .pph>.sb{flex:2 1 0;min-width:0;margin-bottom:0;display:flex}
+  .pph>.sb input{height:100%;border-radius:14px}
+  .ppg{column-count:3;column-gap:28px}
+  .ppg .item{break-inside:avoid;-webkit-column-break-inside:avoid}
+  .ppg .item:last-child{border-bottom:1px solid var(--bd)}
   .sgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
   .sgrid .about{grid-column:1/-1}
   .mapr{right:auto;width:460px}
@@ -234,7 +244,7 @@ main>#pl>p{grid-column:1/-1}
 <body>
 <header id="top" style="display:none"><img id="hl" alt=""><h1 id="ht">Dashboard</h1><button id="fz" class="hb" aria-label="Ukuran font" aria-haspopup="true"><span class="aa"><small>A</small>A</span></button><button id="tg" class="hb" aria-label="Mode gelap"></button><button id="mp" class="hb" aria-label="Peta offline"></button></header>
 <main id="app"></main>
-<nav id="nav" style="display:none"><button data-p="trips"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button><button data-p="plan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Rencana</span></button><button id="fab" aria-label="Trip baru">+</button><button data-p="cal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg><span>Kalender</span></button><button data-p="set"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span>Setting</span></button></nav>
+<nav id="nav" style="display:none"><button data-p="trips"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></button><button data-p="prep"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Prepare</span></button><button data-p="cal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Kalender</span></button><button id="fab" aria-label="Trip baru">+</button><button data-p="set"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span>Setting</span></button></nav>
 
 
 <script type="module">
@@ -277,6 +287,66 @@ document.addEventListener('click', e => { const b = e.target.closest('.clk'); if
 document.addEventListener('change', e => { if (e.target.classList.contains('tp') && e.target.value) e.target.parentNode.querySelector('.tm').value = e.target.value; });
 const fd = d => d ? new Date(d + 'T00:00').toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
 
+// ---- Trip tanpa tanggal pasti (perkiraan): disimpan tbd:true, start/end kosong; di memori dipetakan ke tanggal virtual 2000-01-01 (Hari ke-N) ----
+const VB = '2000-01-01', isV = d => !!d && d < '2001-01-01', vday = d => dayDiff(d, VB) + 1;
+const trg = t => t.tbd ? 'Tanggal belum pasti' : fd(t.start) + ' – ' + fd(t.end);
+const sk = t => t.tbd ? '9999-12-31' : t.start;
+const dayField = (id, val = '') => `<div class="df"><input id="${id}" class="dy" inputmode="numeric" placeholder="Hari ke-" maxlength="3" autocomplete="off" required value="${val && isV(val) ? vday(val) : ''}"></div>`;
+document.addEventListener('input', e => { if (e.target.classList && (e.target.classList.contains('dy') || e.target.classList.contains('qy'))) { const q = e.target.classList.contains('qy'); let v = e.target.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, q ? 15 : 3); e.target.value = q && v ? Number(v).toLocaleString('id-ID') : v; } });
+// ---- Dropdown kategori barang bisa diketik: ketik sebagian nama untuk menyaring, tanpa scroll ----
+(() => {
+  const SEL = 'select#ppc,select#pc,select#fc,select#gc,select#ecat,select#ecat2,select#elc,select#lnc2,select.lcat,select.lct';
+  const st = document.createElement('style');
+  st.textContent = '.ssw{position:relative}.ssw input{padding-right:34px;text-overflow:ellipsis}.ssw svg{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mu)}'
+    + '.ssl{position:fixed;z-index:99999;box-sizing:border-box;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);overflow-y:auto;padding:4px;font-size:14px}'
+    + '.ssl div{padding:9px 12px;border-radius:8px;cursor:pointer}.ssl div.on{background:var(--act)}';
+  document.head.appendChild(st);
+  const vd = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  const label = sel => { const o = sel.options[sel.selectedIndex]; return o ? o.textContent.trim() : ''; };
+  let openPos = null; // fungsi penempatan daftar yang sedang terbuka
+  const reposition = () => { if (openPos) openPos(); };
+  window.addEventListener('scroll', reposition, true); window.addEventListener('resize', reposition);
+  const enhance = sel => {
+    if (sel._ss || !sel.parentNode) return; sel._ss = true;
+    const w = document.createElement('div'); w.className = 'ssw'; w.style.flex = getComputedStyle(sel).flex;
+    const inp = document.createElement('input'); inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false;
+    inp.setAttribute('aria-label', sel.getAttribute('aria-label') || 'Kategori'); inp.placeholder = 'Cari kategori…'; inp.value = label(sel);
+    w.appendChild(inp); w.insertAdjacentHTML('beforeend', '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>');
+    sel.style.display = 'none'; sel.parentNode.insertBefore(w, sel.nextSibling);
+    let list = null, items = [], hi = 0;
+    const place = () => { if (!list) return; const r = inp.getBoundingClientRect(), below = innerHeight - r.bottom - 12, up = r.top - 12, top = below < 160 && up > below;
+      list.style.left = r.left + 'px'; list.style.width = r.width + 'px'; list.style.maxHeight = Math.max(100, Math.min(240, top ? up : below)) + 'px';
+      if (top) { list.style.top = 'auto'; list.style.bottom = (innerHeight - r.top + 4) + 'px'; } else { list.style.bottom = 'auto'; list.style.top = (r.bottom + 4) + 'px'; } };
+    const close = () => { if (list) { list.remove(); list = null; if (openPos === place) openPos = null; } inp.value = label(sel); };
+    const mark = () => { [...list.children].forEach((c, i) => c.classList.toggle('on', i === hi)); const c = list.children[hi]; if (c) c.scrollIntoView({block: 'nearest'}); };
+    const pick = v => { vd.set.call(sel, v); sel.dispatchEvent(new Event('change', {bubbles: true})); close(); };
+    const show = q => {
+      const t = q.trim().toLowerCase();
+      items = [...sel.options].map(o => ({v: o.value, t: o.textContent.trim()})).filter(o => o.v === '__new' || !t || o.t.toLowerCase().includes(t));
+      if (!list) { list = document.createElement('div'); list.className = 'ssl'; list.onmousedown = e => e.preventDefault(); document.body.appendChild(list); openPos = place; }
+      list.innerHTML = ''; items.forEach((o, i) => { const d = document.createElement('div'); d.textContent = o.t; d.onmousedown = e => { e.preventDefault(); pick(o.v); }; list.appendChild(d); });
+      const first = t ? items.findIndex(o => o.v !== '__new') : items.findIndex(o => o.v === sel.value);
+      hi = Math.max(0, first); place(); mark();
+    };
+    inp.onfocus = () => { inp.select(); show(''); };
+    inp.onclick = () => { if (!list) { inp.select(); show(''); } };
+    inp.oninput = () => show(inp.value);
+    inp.onblur = close;
+    inp.onkeydown = e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (!list) show(''); else { hi = (hi + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; mark(); } }
+      else if (e.key === 'Enter') { if (list) { e.preventDefault(); if (items[hi]) pick(items[hi].v); } }
+      else if (e.key === 'Escape') { if (list) { e.preventDefault(); e.stopPropagation(); close(); } }
+      else if (e.key === 'Tab') close();
+    };
+    // nilai yang diatur lewat kode (sel.value = ...) atau opsi yang diisi ulang ikut tampil di kolom
+    Object.defineProperty(sel, 'value', {configurable: true, get() { return vd.get.call(sel); }, set(v) { vd.set.call(sel, v); if (!list) inp.value = label(sel); }});
+    new MutationObserver(() => { if (!list) inp.value = label(sel); }).observe(sel, {childList: true, subtree: true, attributes: true, attributeFilter: ['selected']});
+    sel.addEventListener('change', () => { if (!list) inp.value = label(sel); });
+  };
+  const scan = n => { if (n.nodeType !== 1) return; if (n.matches(SEL)) enhance(n); n.querySelectorAll(SEL).forEach(enhance); };
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(scan))).observe(document.documentElement, {childList: true, subtree: true});
+  scan(document.documentElement);
+})();
 const ic = (d, z = 18) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const P = {pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
@@ -404,7 +474,8 @@ function openMap() {
 
   let fails = 0;
   async function loadInto(im, zz, x, y) { const b = await tileBlob(zz, x, y); if (!b) { if (im.isConnected && navigator.onLine !== false && ++fails === 6 && !busy) note('Peta gagal dimuat. Coba ganti sumber peta lewat tombol "Sumber peta".'); return; } if (!im.isConnected) return; const u = URL.createObjectURL(b); im.onload = () => URL.revokeObjectURL(u); im.src = u; }
-  function render() {
+  
+function render() {
     const W = mv.clientWidth, H = mv.clientHeight, n = 2 ** z, c = toT(ctr.lat, ctr.lng, z), need = new Set();
     for (let y = Math.floor(c.y - H / 512); y <= Math.floor(c.y + H / 512); y++) {
       if (y < 0 || y >= n) continue;
@@ -647,9 +718,9 @@ setFs(fsv);
 const todayISO = () => new Date().toLocaleDateString('sv');
 const dayDiff = (a, b) => Math.round((new Date(a + 'T00:00') - new Date(b + 'T00:00')) / 864e5);
 // status mingguan (Senin–Minggu): 'on' = trip yang tanggalnya bersinggungan dengan minggu ini, 'up' = mulai setelah minggu ini, 'done' = berakhir sebelum minggu ini
-const wstat = t => { const d = new Date(todayISO() + 'T00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); const mon = d.toLocaleDateString('sv'); d.setDate(d.getDate() + 6); const sun = d.toLocaleDateString('sv');
+const wstat = t => { if (t.tbd) return 'up'; const d = new Date(todayISO() + 'T00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); const mon = d.toLocaleDateString('sv'); d.setDate(d.getDate() + 6); const sun = d.toLocaleDateString('sv');
   return t.end < mon ? 'done' : t.start > sun ? 'up' : 'on'; };
-const stat = t => { const n = todayISO(); return n < t.start ? 'up' : n > t.end ? 'done' : 'on'; };
+const stat = t => { if (t.tbd) return 'up'; const n = todayISO(); return n < t.start ? 'up' : n > t.end ? 'done' : 'on'; };
 
 let user = null, trips = [], cur = null, page = 'trips', unsub = null, authMode = 'login', planOpen = false;
 const tripsCol = () => collection(db, 'users', user.uid, 'trips');
@@ -665,7 +736,9 @@ onAuthStateChanged(auth, u => {
   document.body.classList.toggle('in', !!u); // aktifkan tata letak desktop (sidebar) hanya saat sudah masuk
   if (!u) return renderAuth();
   unsub = onSnapshot(query(tripsCol(), orderBy('created', 'desc')), s => {
-    trips = s.docs.map(d => ({id: d.id, itin: [], exp: [], pack: [], pdone: [], store: [], ...d.data()}));
+    trips = s.docs.map(d => { const o = {id: d.id, itin: [], exp: [], pack: [], pdone: [], store: [], ...d.data()};
+      if (o.tbd) { const mx = Math.max(0, ...o.itin.filter(i => isV(i.date)).map(i => dayDiff(i.date, VB))); o.start = VB; o.end = addDays(VB, mx); }
+      return o; });
     if (!trips.find(t => t.id === cur)) { cur = trips[0]?.id || null; planOpen = false; }
     const y = window.scrollY, pg = page, op = planOpen, cu = cur;
     render();
@@ -705,20 +778,130 @@ const errMsg = x => ({
   'auth/operation-not-allowed': 'Aktifkan Email/Password di Firebase Console.'
 }[x.code] || x.message);
 
+// ---- Prepare: checklist gabungan seluruh trip (barang yang sama dari beberapa trip dijadikan satu) ----
+let ppQ = '', ppCat = null, prepAdd = null;
+function renderPrep() {
+  prepAdd = null;
+  const ord = {on: 0, up: 1, done: 2};
+  const all = [...trips].sort((x, y) => ord[wstat(x)] - ord[wstat(y)] || (wstat(x) === 'done' ? y.start.localeCompare(x.start) : sk(x).localeCompare(sk(y))));
+  if (!all.length) { A.innerHTML = '<p class="mu" style="text-align:center;margin:28px 0">Belum ada trip.<br>Tekan tombol <b>+</b> untuk membuat trip pertama.</p>'; return; }
+  const m = new Map();
+  all.forEach(t => packAll(t).forEach(e => { let x = m.get(e.key);
+    if (!x) { x = {key: e.key, title: e.title, cat: e.cat, trips: []}; m.set(e.key, x); }
+    if (x.cat === 'Lainnya' && e.cat !== 'Lainnya') x.cat = e.cat;
+    x.trips.push({t, done: e.done}); }));
+  const ents = [...m.values()];
+  const home = all[0];
+  // selalu urut A-Z (otomatis saat tambah, rename, atau hapus)
+  ents.sort((a, b) => a.title.localeCompare(b.title, 'id', {sensitivity: 'base', numeric: true}));
+  A.innerHTML = `<div class="pph"><form class="card" id="ppf"><div class="row" style="flex-wrap:wrap;margin-bottom:0"><input id="ppn" placeholder="Nama barang" required style="flex:1 1 150px"><input id="ppq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" style="flex:0 0 76px;width:76px;text-align:center"><select id="ppu" aria-label="Satuan" style="flex:0 0 76px;width:76px">${qOpts('pcs')}</select><select id="ppc" aria-label="Kategori" style="flex:1 1 110px">${catOpts(home, lastCat)}</select><input id="ppcn" placeholder="Nama kategori baru" maxlength="30" style="flex:1 1 130px"><button style="flex:0 0 84px;padding-left:8px;padding-right:8px">Tambah</button></div></form>
+    <div class="sb">${ic(SRCH, 20)}<input id="ppq2" type="search" placeholder="Cari checklist barang" value="${esc(ppQ)}" autocomplete="off"></div></div>
+    <div class="card" id="ppl"></div>`;
+  catPick($('#ppc'), $('#ppcn'));
+  const paint = () => { const q = nk(ppQ), L = ents.filter(e => !q || nk(e.title).includes(q) || nk(e.cat).includes(q));
+    const cats = [...LCAT, ...L.map(e => e.cat)].filter((c, i, a) => a.indexOf(c) === i && L.some(e => e.cat === c));
+    if (!ppCat) ppCat = cats[0];
+    if (!q && ppCat && !cats.includes(ppCat)) cats.push(ppCat);
+    const ci = Math.max(0, cats.indexOf(ppCat)), pg = !q && cats.length > 1, show = q ? cats : [cats[ci]];
+    const row = e => `<div class="item" data-ek="${esc(e.key)}" title="Klik untuk edit, klik 2x untuk ganti nama" style="cursor:pointer"><span class="t"><span class="tt" data-k="${esc(e.key)}">${esc(e.title)}</span></span></div>`;
+    $('#ppl').innerHTML = (L.length ? show.map(c => { const g = L.filter(e => e.cat === c);
+      return `<div class="lgh lgn">${pg ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.length}</span></span>${pg ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + (g.length ? '<div class="ppg">' + g.map(row).join('') + '</div>' : '<div class="mu" style="margin:8px 0">Belum ada barang di kategori ini.</div>'); }).join('') : '<div class="mu" style="margin:8px 0">' + (ents.length ? 'Tidak ada barang yang cocok.' : 'Belum ada barang. Tambahkan lewat form di atas.') + '</div>');
+    const sc = $('#ppc'); if (!q && sc && [...sc.options].some(o => o.value === ppCat)) sc.value = ppCat;
+    $('#ppl').querySelectorAll('[data-nv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.nv]; if (n) { ppCat = n; paint(); } });
+    // klik 1x di mana saja pada baris barang (teks maupun area kosong): pop up edit (nama, qty, satuan, kategori) — berlaku di semua trip yang memakai barang ini
+    // klik 1x: pop up edit; klik 2x: ganti nama langsung di tempat (jeda singkat agar 2 klik tidak membuka pop up)
+    $('#ppl').querySelectorAll('.item[data-ek]').forEach(r => { const e = ents.find(x => x.key === r.dataset.ek); if (!e) return; let tm = 0;
+      r.onmousedown = ev => { if (ev.detail > 1 && !ev.target.closest('input')) ev.preventDefault(); };
+      r.onclick = ev => { if (ev.target.closest('input')) return;
+        if (tm) { clearTimeout(tm); tm = 0; const tt = r.querySelector('.tt'); if (tt) startRen(tt, e); return; }
+        tm = setTimeout(() => { tm = 0; editEnt(e); }, 260); }; });
+  };
+  // hapus selamanya: dari semua trip (packing list, list kegiatan, storage) dan dari rekomendasi
+  const delForever = e => {
+    if (!confirm('Hapus "' + e.title + '" selamanya dari semua trip (' + e.trips.length + ' trip) dan rekomendasi? Tindakan ini tidak bisa dibatalkan.')) return false;
+    const cs = new Set([e.cat]); trips.forEach(z => packAll(z).forEach(x => { if (x.key === e.key) cs.add(x.cat); }));
+    try { const h = new Set(JSON.parse(localStorage.getItem('et-sughide')) || []); cs.forEach(c => h.add(c + '|' + e.key)); localStorage.setItem('et-sughide', JSON.stringify([...h])); } catch {}
+    e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
+      const pack = (f.pack || []).filter(p => nk(p.title) !== e.key);
+      const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.filter(l => nk(l.name) !== e.key)} : i);
+      const q = {...(f.pqty || {})}; delete q[e.key];
+      save(f, {pack, itin, pqty: q, porder: (f.porder || []).filter(k => k !== e.key), pdone: (f.pdone || []).filter(k => k !== e.key), store: (f.store || []).filter(x => !(x.k !== 'c' && nk(x.n) === e.key))}); }); return true; };
+  const renameAll = (e, nm) => { nm = nm.trim(); if (!nm || nm === e.title) return false; const nn = nk(nm);
+    if (nn !== e.key && e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn))) { alert('Barang ini sudah ada di salah satu trip.'); return false; }
+    e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
+      const pack = (f.pack || []).map(p => nk(p.title) === e.key ? {...p, title: nm} : p);
+      const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.map(l => nk(l.name) === e.key ? {...l, name: nm} : l)} : i);
+      const pd = new Set(f.pdone || []); if (nn !== e.key && pd.has(e.key)) { pd.delete(e.key); pd.add(nn); }
+      save(f, {pack, itin, store: renSt(f, e.key, nm), porder: renPo(f, e.key, nn), pqty: mvQ(f.pqty, e.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); });
+    return true; };
+  const editEnt = e => {
+    const t0 = freshTrip(home.id) || home;
+    let q0 = null; for (const z of e.trips) { const v = qv(((freshTrip(z.t.id) || z.t).pqty || {})[e.key]); if (v) { q0 = v; break; } }
+    const m = openEdit('Edit barang', `<div class="row"><input id="gn" value="${esc(e.title)}" maxlength="60" autocomplete="off" required></div><div class="row"><input id="gq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" value="${q0 ? q0.n.toLocaleString('id-ID') : ''}" style="flex:1 1 0"><select id="gu" aria-label="Satuan" style="flex:1 1 0">${qOpts(q0 ? q0.u : 'pcs')}</select></div><div class="row"><select id="gc" aria-label="Kategori">${catOpts(t0, e.cat)}</select></div><div class="row"><input id="gcn" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
+      const nm = m.querySelector('#gn').value.trim(), ct = readCat(m.querySelector('#gc'), m.querySelector('#gcn'));
+      if (!nm) return alert('Isi nama barang.'); if (!ct) return alert('Isi nama kategori baru.');
+      const nn = nk(nm);
+      if (nn !== e.key && e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn))) return alert('Barang ini sudah ada di salah satu trip.');
+      const qo = qRead(m.querySelector('#gq'), m.querySelector('#gu')), qch = JSON.stringify(qo) !== JSON.stringify(q0 ? {n: q0.n, u: q0.u} : null);
+      e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
+        const pack = (f.pack || []).map(p => nk(p.title) === e.key ? {...p, title: nm, cat: ct} : p);
+        const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.map(l => nk(l.name) === e.key ? {...l, name: nm, cat: ct} : l)} : i);
+        const pd = new Set(f.pdone || []); if (nn !== e.key && pd.has(e.key)) { pd.delete(e.key); pd.add(nn); }
+        let pq = mvQ(f.pqty, e.key, nn); if (qch) pq = setQ(pq, nn, nn, qo);
+        save(f, {pack, itin, store: renSt(f, e.key, nm), porder: renPo(f, e.key, nn), pqty: pq, pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); });
+      ppCat = ct; lastCat = ct; return true;
+    });
+    if (m) { catPick(m.querySelector('#gc'), m.querySelector('#gcn')); const gn = m.querySelector('#gn'); gn.focus(); gn.select();
+      m.querySelector('#ec0').insertAdjacentHTML('beforebegin', '<button type="button" id="gdel" style="background:#c0392b;border-color:#c0392b;color:#fff">Hapus</button>');
+      m.querySelector('#gdel').onclick = () => { if (delForever(e)) m.remove(); }; xBtn(m); }
+  };
+  const startRen = (span, e) => { const inp = document.createElement('input'); inp.value = e.title; inp.maxLength = 60; inp.setAttribute('aria-label', 'Ganti nama barang'); inp.style.cssText = 'padding:4px 8px;width:100%';
+    span.replaceWith(inp); inp.focus(); inp.select(); let fin = false;
+    const end = ok => { if (fin) return; fin = true; if (!(ok && renameAll(e, inp.value)) && inp.isConnected) inp.replaceWith(span); };
+    inp.onkeydown = ev => { if (ev.key === 'Enter') { ev.preventDefault(); end(true); } else if (ev.key === 'Escape') end(false); };
+    inp.onblur = () => end(true); };
+  $('#ppc').addEventListener('change', e => { if (e.target.value === '__new') return; ppCat = e.target.value; ppQ = ''; $('#ppq2').value = ''; paint(); });
+  paint();
+  $('#ppq2').oninput = e => { ppQ = e.target.value; paint(); };
+  $('#ppf').onsubmit = e => { e.preventDefault();
+    const nm = $('#ppn').value.trim(), ct = readCat($('#ppc'), $('#ppcn'));
+    if (!nm) return; if (!ct) return alert('Isi nama kategori baru.');
+    const t = freshTrip(home.id) || home;
+    if (packAll(t).some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di trip ' + t.name + '.');
+    lastCat = ct; const qo = qRead($('#ppq'), $('#ppu'));
+    refocus = '#ppn'; save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); };
+  // tombol "+ Barang" (sidebar/FAB): pop up tambah barang (nama, qty, satuan, kategori)
+  prepAdd = () => {
+    const t0 = freshTrip(home.id) || home;
+    const m = openEdit('Barang baru', `<div class="row"><input id="fn" placeholder="Nama barang" maxlength="60" autocomplete="off" required></div><div class="row"><input id="fq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" style="flex:1 1 0"><select id="fu" aria-label="Satuan" style="flex:1 1 0">${qOpts('pcs')}</select></div><div class="row"><select id="fc" aria-label="Kategori">${catOpts(t0, ppCat || lastCat)}</select></div><div class="row"><input id="fcn" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
+      const nm = m.querySelector('#fn').value.trim(), ct = readCat(m.querySelector('#fc'), m.querySelector('#fcn'));
+      if (!nm) return alert('Isi nama barang.'); if (!ct) return alert('Isi nama kategori baru.');
+      const t = freshTrip(home.id) || home;
+      if (packAll(t).some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di trip ' + t.name + '.');
+      lastCat = ct; ppCat = ct; ppQ = ''; const qo = qRead(m.querySelector('#fq'), m.querySelector('#fu'));
+      save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); return true;
+    });
+    if (m) { catPick(m.querySelector('#fc'), m.querySelector('#fcn')); m.querySelector('#fn').focus(); xBtn(m); }
+  };
+}
+
 function render() {
   if (!user) return;
-  document.querySelectorAll('#nav [data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === page));
-  $('#ht').textContent = {trips: 'Dashboard', plan: 'Rencana', cal: 'Kalender', set: 'Setting'}[page];
-  $('#fab').setAttribute('aria-label', page === 'plan' && planOpen && getTrip() ? 'Tambah kegiatan' : 'Trip baru');
+  if (page === 'plan' && !(planOpen && getTrip())) { page = 'trips'; planOpen = false; } // halaman Rencana dihapus: detail trip dibuka dari Dashboard
+  document.querySelectorAll('#nav [data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === page || (page === 'plan' && b.dataset.p === 'trips')));
+  $('#ht').textContent = {trips: 'Dashboard', plan: 'Detail Trip', prep: 'Prepare', cal: 'Kalender', set: 'Setting'}[page];
+  $('#fab').setAttribute('aria-label', page === 'prep' && trips.length ? 'Barang' : page === 'plan' && planOpen && getTrip() ? 'Tambah kegiatan' : 'Trip baru');
   if (page === 'trips') return renderList();
   if (page === 'set') return renderSet();
   if (page === 'cal') return renderCal();
-  if (page === 'plan') return planOpen && getTrip() ? renderPlanDetail() : renderPlans();
+  if (page === 'prep') return renderPrep();
+  if (page === 'plan') return renderPlanDetail();
   return renderList();
 }
-document.querySelectorAll('#nav [data-p]').forEach(b => b.onclick = () => { page = b.dataset.p; if (page === 'plan') planOpen = false; render(); window.scrollTo(0, 0); });
+document.querySelectorAll('#nav [data-p]').forEach(b => b.onclick = () => { page = b.dataset.p; planOpen = false; render(); window.scrollTo(0, 0); });
 $('#fab').onclick = () => { const t = getTrip();
-  if (page === 'plan' && planOpen && t) { const n = todayISO(); addPlan(t, pf.tid === t.id && pf.day !== 'all' ? pf.day : (n >= t.start && n <= t.end ? n : t.start)); } else openNew(); };
+  if (page === 'prep' && prepAdd) prepAdd();
+  else if (page === 'plan' && planOpen && t) { const n = todayISO(); addPlan(t, pf.tid === t.id && pf.day !== 'all' ? pf.day : (n >= t.start && n <= t.end ? n : t.start)); } else openNew(); };
 
 function openEdit(title, body, onSave) {
   const o = document.createElement('div'); o.className = 'ov';
@@ -731,24 +914,41 @@ function openEdit(title, body, onSave) {
   return o;
 }
 
+// ganti tombol Batal dengan ikon "X" di pojok kanan atas pop up
+function xBtn(m) {
+  const sh = m.querySelector('.sheet') || m.querySelector('form'), c0 = m.querySelector('#ec0'); if (!sh) return;
+  if (c0) c0.remove(); sh.style.position = 'relative';
+  const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-label', 'Tutup'); b.title = 'Tutup';
+  b.innerHTML = ic('<path d="M18 6 6 18M6 6l12 12"/>', 20);
+  b.style.cssText = 'position:absolute;top:10px;right:10px;width:36px;height:36px;padding:0;background:transparent;border:0;color:var(--tx);display:flex;align-items:center;justify-content:center';
+  b.onclick = () => m.remove(); sh.appendChild(b);
+}
+
 function openNew() {
   const o = document.createElement('div'); o.className = 'ov';
   o.innerHTML = `<form class="sheet"><b>Trip baru</b>
     <div class="row" style="margin-top:8px"><input id="nn" placeholder="Nama trip (mis. Liburan Bali)" required></div>
     <div class="row"><input id="nd" placeholder="Tujuan" required></div>
-    <div class="row">${dField('ns')}${dField('ne')}</div>
+    <div id="ndr"><div class="row">${dField('ns')}${dField('ne')}</div></div>
+    <div class="ck"><label><input type="checkbox" id="ntbd"><span>Tanggal belum pasti (masih perkiraan trip)</span></label></div>
     <div class="row"><input id="nb" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Budget (Rp)"></div>
     <div class="row"><button type="button" class="ghost" id="nc">Batal</button><button>Simpan</button></div></form>`;
   document.body.appendChild(o);
   o.onclick = e => { if (e.target === o) o.remove(); };
   o.querySelector('#nc').onclick = () => o.remove();
+  const ntb = o.querySelector('#ntbd'), ndr = o.querySelector('#ndr');
+  ntb.onchange = () => { ndr.style.display = ntb.checked ? 'none' : ''; ndr.querySelectorAll('.dt').forEach(i => i.required = !ntb.checked); };
   o.querySelector('form').onsubmit = async e => {
     e.preventDefault();
-    const start = d2iso(o.querySelector('#ns').value), end = d2iso(o.querySelector('#ne').value);
-    if (!start || !end) return alert('Isi tanggal dengan format dd/mm/yyyy.');
-    if (end < start) return alert('Tanggal selesai harus setelah tanggal mulai.');
+    const tbd = ntb.checked;
+    let start = '', end = '';
+    if (!tbd) {
+      start = d2iso(o.querySelector('#ns').value); end = d2iso(o.querySelector('#ne').value);
+      if (!start || !end) return alert('Isi tanggal dengan format dd/mm/yyyy.');
+      if (end < start) return alert('Tanggal selesai harus setelah tanggal mulai.');
+    }
     const r = await addDoc(tripsCol(), {name: o.querySelector('#nn').value.trim(), dest: o.querySelector('#nd').value.trim(),
-      start, end, budget: rpNum(o.querySelector('#nb').value),
+      tbd, start, end, budget: rpNum(o.querySelector('#nb').value),
       itin: [], exp: [], pack: [], created: Date.now()});
     cur = r.id; page = 'plan'; planOpen = true; o.remove(); render();
   };
@@ -761,18 +961,18 @@ function openRecap(t, k) {
   const none = x => `<span class="mu">${x}</span>`;
   const SEC = {
     plan: () => { const by = {}; t.itin.forEach(i => (by[i.date] = by[i.date] || []).push(i)); const ds = Object.keys(by).sort();
-      const lb = d => new Date(d + 'T00:00').toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
-      return ['Rencana · ' + t.itin.length + ' kegiatan', ds.length ? ds.map(d => (ds.length > 1 ? `<div class="dg">${d < t.start ? 'Persiapan' : 'Hari ' + (dayDiff(d, t.start) + 1)} · ${lb(d)}</div>` : '')
+      const lb = d => isV(d) ? 'Hari ' + vday(d) : new Date(d + 'T00:00').toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
+      return ['Rencana · ' + t.itin.length + ' kegiatan', ds.length ? ds.map(d => (ds.length > 1 ? `<div class="dg">${d < t.start ? 'Persiapan' : 'Hari ' + (dayDiff(d, t.start) + 1)}${t.tbd ? '' : ' · ' + lb(d)}</div>` : '')
         + by[d].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99')).map(i => cr(esc(i.title), '', esc(i.time) || '—')).join('')).join('') : none('Belum ada rencana.')]; },
     cost: () => { const tot = sum(t);
       return ['Biaya', `<div class="mu" style="margin-bottom:4px">Realisasi <b>${rp(tot)}</b> dari ${rp(t.budget)}${t.budget ? ' · ' + (tot > t.budget ? 'lebih ' + rp(tot - t.budget) : 'sisa ' + rp(t.budget - tot)) : ''}</div>`
         + (t.exp.length || actCosts(t).length ? '<div class="dg">Rincian</div>' + t.exp.map(x => cr(`${esc(x.title)} <span class="mu">· ${esc(x.cat)}</span>`, rp(x.amt))).join('') + costItems(t).map(({i, c}) => cr(`${esc(c.name) || esc(i.title)} <span class="mu">· ${esc(i.title)}</span>`, rp(c.amt))).join('') : none('Belum ada pengeluaran.'))]; },
     pack: () => { const d = ents.filter(p => p.done).length;
-      return ['Packing · ' + d + '/' + ents.length + ' siap', ents.length ? `<div class="pg">${ents.map((p, n) => `<label class="${p.done ? 'done' : ''}"><input type="checkbox" data-pk="${n}" ${p.done ? 'checked' : ''}><span>${esc(p.title)}</span></label>`).join('')}</div><div class="mu pn" style="margin-top:6px"></div>` : none('Daftar kosong.')]; }
+      return ['Packing · ' + d + '/' + ents.length + ' siap', ents.length ? `<div class="pg">${ents.map((p, n) => `<label class="${p.done ? 'done' : ''}"><input type="checkbox" data-pk="${n}" ${p.done ? 'checked' : ''}><span>${esc(p.title)}${p.qty ? ' (' + qTxt(p.qty, p.unit) + ')' : ''}</span></label>`).join('')}</div><div class="mu pn" style="margin-top:6px"></div>` : none('Daftar kosong.')]; }
   };
   const sec = key => { const [h, body] = SEC[key](); return `<h4 class="rh" data-k="${key}">${h}</h4>${body}`; };
   o.innerHTML = `<div class="sheet rc"><div><h3 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:calc(17px*var(--fs,1))">${esc(t.name)}</h3>
-    <div class="mu" style="margin-top:2px">${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div></div>
+    <div class="mu" style="margin-top:2px">${esc(t.dest)} · ${trg(t)}</div></div>
     <div class="rb">${k ? sec(k) : ['plan', 'cost', 'pack'].map(sec).join('')}</div>
     <div class="row" style="margin:12px 0 0">${k ? '<button type="button" class="ghost" id="rk">Kelola</button>' : ''}<button type="button" id="rc">Tutup</button></div></div>`;
   document.body.appendChild(o);
@@ -795,14 +995,14 @@ function renderList() {
   const c = {on: 0, up: 0, done: 0}; trips.forEach(t => c[wstat(t)]++);
   const ord = {on: 0, up: 1, done: 2}, lbl = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai'};
   if (listFilter && !c[listFilter]) listFilter = null;
-  const list = [...trips].filter(t => !listFilter || wstat(t) === listFilter).sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
+  const list = [...trips].filter(t => !listFilter || wstat(t) === listFilter).sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : sk(a).localeCompare(sk(b))));
   const card = t => {
     const s = stat(t), w = wstat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1, tot = sum(t), pct = t.budget ? Math.min(100, tot / t.budget * 100) : 0;
-    const cd = s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
+    const cd = t.tbd ? '' : s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
     return `<div class="card tc" data-open="${t.id}">
       <div class="tch"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab" data-ex aria-label="Rekap">${ic(P.ex, 20)}</button></div>
-      <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${fd(t.start)} – ${fd(t.end)}</span></div>
-      <div class="chips"><span class="chip on">${lbl[w]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}</div>
+      <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${trg(t)}</span></div>
+      <div class="chips"><span class="chip on">${lbl[w]}</span>${t.tbd ? '' : `<span class="chip">${days} hari</span>`}${cd ? `<span class="chip">${cd}</span>` : ''}</div>
       <div class="mu">Biaya ${rp(tot)} / ${rp(t.budget)}</div><div class="bar"><i class="${t.budget && tot > t.budget ? 'over' : ''}" style="width:${pct}%"></i></div>
       <div class="acts"><button class="ab" data-go="plan" aria-label="Rencana">${ic(P.cal)}</button><button class="ab" data-go="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-go="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-dup aria-label="Duplikat perjalanan" title="Duplikat">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-rm aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`;
   };
@@ -845,7 +1045,7 @@ const COPY = '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a
 const SRCH = '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>';
 const GRID = '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>';
 const icf = (d, z = 18) => ic(d, z).replace('fill="none"', 'fill="currentColor"');
-const sd = d => new Date(d + 'T00:00').toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
+const sd = d => isV(d) ? 'Hari ' + vday(d) : new Date(d + 'T00:00').toLocaleDateString('id-ID', {weekday: 'short', day: 'numeric', month: 'short'});
 const inTrip = (t, d) => d >= t.start && d <= t.end;
 const dlab = (t, d) => inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : d < t.start ? 'H-' + dayDiff(t.start, d) : sd(d);
 const acat = i => ACAT.includes(i.cat) ? i.cat : (ACAT.includes('Lainnya') ? 'Lainnya' : ACAT[0]);
@@ -864,7 +1064,16 @@ const freshTrip = id => trips.find(x => x.id === id);
 let sugOpen = false; // panel rekomendasi packing: default tersembunyi
 let lastCat = 'Barang', showChecked = false, packCat = null, packQ = ''; // barang yang sudah dicentang disembunyikan otomatis
 // Gabungkan item packing manual + semua list kegiatan; nama yang sama (tanpa beda huruf besar/kecil) dihitung satu barang.
+const renSt = (t, o, nm) => (t.store || []).map(x => nk(x.n) === o ? {...x, n: nm} : x); // nama di Storage ikut berganti
 const renPo = (t, o, n) => (t.porder || []).map(k => k === o ? n : k); // posisi urutan ikut pindah saat barang diganti nama
+// jumlah (qty, opsional) per barang disimpan di t.pqty {kunci_barang: angka}
+const mvQ = (q, o, n) => { const r = {...(q || {})}; if (o !== n && o in r) { r[n] = r[o]; delete r[o]; } return r; };
+const setQ = (q, o, n, v) => { const r = {...(q || {})}; delete r[o]; if (v && v.n > 0) r[n] = v; return r; };
+const QU = ['pcs', 'kg', 'gr', 'Rp'];
+const qv = v => v && typeof v === 'object' ? v : (v > 0 ? {n: +v, u: 'pcs'} : null); // kompatibel dengan data lama (angka saja = pcs)
+const qRead = (i, u) => { const n = +String(i.value).replace(/\D/g, '').slice(0, 15) || 0; return n > 0 ? {n, u: QU.includes(u.value) ? u.value : 'pcs'} : null; };
+const qOpts = cur => QU.map(x => `<option ${x === cur ? 'selected' : ''}>${x}</option>`).join('');
+const qTxt = (n, u) => u === 'Rp' ? 'Rp ' + n.toLocaleString('id-ID') : n.toLocaleString('id-ID') + ' ' + u;
 function packAll(t) {
   const m = new Map(), dn = new Set(t.pdone || []);
   const get = (title, cat) => { const k = nk(title); let e = m.get(k);
@@ -875,7 +1084,7 @@ function packAll(t) {
     .forEach(i => (i.lists || []).forEach(l => { if (!nk(l.name)) return; const e = get(l.name, l.cat);
       if (!e.uses.some(u => u.id === i.id)) e.uses.push({id: i.id, title: i.title, date: i.date}); }));
   const ord = new Map((t.porder || []).map((k, i) => [k, i]));
-  return [...m.values()].map((e, i) => ({...e, cat: e.cat || 'Lainnya', done: e.manual.length ? e.manual.some(p => p.done) : dn.has(e.key), _i: i}))
+  return [...m.values()].map((e, i) => ({...e, cat: e.cat || 'Lainnya', done: e.manual.length ? e.manual.some(p => p.done) : dn.has(e.key), qty: (qv((t.pqty || {})[e.key]) || {}).n || 0, unit: (qv((t.pqty || {})[e.key]) || {}).u || 'pcs', _i: i}))
     .sort((a, b) => (ord.has(a.key) ? ord.get(a.key) : 1e6) - (ord.has(b.key) ? ord.get(b.key) : 1e6) || a._i - b._i);
 }
 // pilih kegiatan mana saja yang memakai sebuah barang (dipakai di dialog Edit barang / Ubah kategori)
@@ -925,7 +1134,7 @@ function setLists(tid, aid, fn, mig) {
   const pack = keepOrphans(t, cur ? cur.lists : [], itin, t.pack || [], mig ? [mig[0]] : []);
   const ks = new Set(packAll({...t, itin, pack}).map(e => e.key)), pd = new Set(t.pdone || []);
   if (mig && pd.has(mig[0]) && !ks.has(mig[0])) pd.add(mig[1]);
-  save(t, {itin, pack, ...(mig ? {porder: renPo(t, mig[0], mig[1])} : {}), pdone: [...pd].filter(k => ks.has(k))});
+  save(t, {itin, pack, ...(mig ? {store: (() => { const l = (itin.find(i => i.id === aid).lists || []).find(l => nk(l.name) === mig[1]); return l ? renSt(t, mig[0], l.name) : (t.store || []); })(), porder: renPo(t, mig[0], mig[1]), pqty: mvQ(t.pqty, mig[0], mig[1])} : {}), pdone: [...pd].filter(k => ks.has(k))});
 }
 function paintLists(box, tid, aid) {
   const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return false;
@@ -991,7 +1200,7 @@ function listBox(tid, aid) {
 const PLUSB = (id, label) => `<button type="button" class="ghost" id="${id}" aria-label="${label}" title="${label}" style="flex:0 0 36px;width:36px;padding:6px 0;font-size:20px;line-height:1">+</button>`;
 const costRow = (c = {}) => `<div class="row cstr" data-id="${esc(c.id || '')}"><input class="cnm" placeholder="Nama biaya" maxlength="60" value="${esc(c.name)}"><input class="rpi cam" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px" value="${+c.amt > 0 ? rpFmt(c.amt) : ''}"><button type="button" class="del" data-crm aria-label="Hapus biaya" style="flex:0 0 auto">✕</button></div>`;
 const listRow = (t, l = {}) => `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}"><select class="lct" aria-label="Kategori" style="flex:0 0 112px">${l.cat ? '' : '<option value="" selected>Kategori</option>'}${catOpts(t, l.cat)}</select><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto">✕</button></div><div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`;
-const actBody = (t, it = {}) => `<div class="row">${dField('ad', it.date || '', '', t.end)}${tField('ah', it.time || '')}</div>
+const actBody = (t, it = {}) => `<div class="row">${t.tbd ? dayField('ad', it.date) : dField('ad', it.date || '', '', t.end)}${tField('ah', it.time || '')}</div>
   <div class="row"><input id="an" placeholder="Kegiatan / tempat" required value="${esc(it.title)}" style="flex:1 1 0"><select id="ac" style="flex:0 0 112px">${ACAT.map(c => `<option ${c === acat(it) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ab" id="ack" aria-label="Kelola kategori kegiatan" title="Kelola kategori" style="flex:0 0 44px;color:var(--g);justify-content:center">${PEN}</button></div>
   <div class="row"><input id="cnn" placeholder="Nama biaya" maxlength="60" autocomplete="off"><input id="cna" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px">${PLUSB('cnb', 'Tambah biaya')}</div>
   <div id="acs">${costsOf(it).map(costRow).join('')}</div>
@@ -1001,9 +1210,9 @@ const actBody = (t, it = {}) => `<div class="row">${dField('ad', it.date || '', 
   <div class="row"><textarea id="ano" rows="3" placeholder="Catatan (opsional)">${esc(it.note)}</textarea></div>`;
 function readAct(t, m) {
   const pend = m._flush && m._flush(); if (pend) return alert(pend); // isian di baris input yang belum ditekan + ikut disimpan
-  const dd = d2iso(m.querySelector('#ad').value), tt = t2v(m.querySelector('#ah').value);
-  if (!dd) return alert('Isi tanggal dengan format dd/mm/yyyy.');
-  if (dd > t.end) return alert('Tanggal kegiatan tidak boleh setelah tanggal selesai trip (' + fd(t.end) + ').');
+  const dn = +m.querySelector('#ad').value, dd = t.tbd ? (dn >= 1 && dn <= 365 ? addDays(VB, dn - 1) : null) : d2iso(m.querySelector('#ad').value), tt = t2v(m.querySelector('#ah').value);
+  if (!dd) return alert(t.tbd ? 'Isi hari ke berapa (angka 1–365).' : 'Isi tanggal dengan format dd/mm/yyyy.');
+  if (!t.tbd && dd > t.end) return alert('Tanggal kegiatan tidak boleh setelah tanggal selesai trip (' + fd(t.end) + ').');
   if (tt === null) return alert('Jam tidak valid. Gunakan format 24 jam, mis. 07:30.');
   const costs = [...m.querySelectorAll('.cstr')].map(r => ({id: r.dataset.id || uid(), name: r.querySelector('.cnm').value.trim(), amt: rpNum(r.querySelector('.cam').value)})).filter(c => c.amt > 0);
   const lists = [], ren = [], seen = new Set();
@@ -1113,7 +1322,7 @@ function editPlan(t, it) {
     const cur = f.itin.find(i => i.id === it.id), pack = keepOrphans(f, cur ? cur.lists : [], itin, f.pack || [], _ren.map(r => r[0]));
     const ks = new Set(packAll({...f, itin, pack}).map(e => e.key)), pd = new Set(f.pdone || []);
     _ren.forEach(([o, n]) => { if (pd.has(o) && !ks.has(o)) pd.add(n); });
-    save(f, {itin, pack, porder: _ren.reduce((a, [o, n]) => a.map(k => k === o ? n : k), f.porder || []), pdone: [...pd].filter(k => ks.has(k))}); return true; });
+    save(f, {itin, pack, store: (f.store || []).map(x => { const r = _ren.find(q => q[0] === nk(x.n)), l = r && vv.lists.find(l => nk(l.name) === r[1]); return l ? {...x, n: l.name} : x; }), porder: _ren.reduce((a, [o, n]) => a.map(k => k === o ? n : k), f.porder || []), pqty: _ren.reduce((q, [o, n]) => mvQ(q, o, n), f.pqty || {}), pdone: [...pd].filter(k => ks.has(k))}); return true; });
   wireACat(t, ov);
   // tombol hapus kegiatan di sebelah kiri Batal
   const dl = document.createElement('button'); dl.type = 'button'; dl.className = 'ghost'; dl.id = 'edel'; dl.setAttribute('aria-label', 'Hapus kegiatan'); dl.title = 'Hapus kegiatan';
@@ -1161,7 +1370,7 @@ function openDetail(t, it) {
   const T = () => freshTrip(t.id) || t, I = () => T().itin.find(i => i.id === it.id) || it;
   const close = () => { o.remove(); if (listSheet && listSheet.o === o) listSheet = null; };
   o.innerHTML = `<div class="sheet"><div class="ach"><span class="ib">${ic(aci(c), 20)}</span><h3>${esc(it.title)}</h3><button type="button" class="ab" id="dc" aria-label="Tutup" title="Tutup" style="align-self:flex-start;margin:-6px -8px 0 0">${ic('<path d="M18 6 6 18M6 6l12 12"/>', 22)}</button></div>
-    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(t, it) ? `<span class="chip">Durasi ${durOf(t, it)}</span>` : ''}<span class="chip">${dlab(t, it.date)}</span>${inTrip(t, it.date) || it.date < t.start ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${c}</span><span class="chip" id="dcc" hidden></span></div>
+    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(t, it) ? `<span class="chip">Durasi ${durOf(t, it)}</span>` : ''}<span class="chip">${dlab(t, it.date)}</span>${!t.tbd && (inTrip(t, it.date) || it.date < t.start) ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${c}</span><span class="chip" id="dcc" hidden></span></div>
     <div class="dtb"><button type="button" class="ab" id="dm" aria-label="Peta" title="Peta">${ic(NAVI, 18)}</button><button type="button" class="ab" id="dd" aria-label="Duplikat" title="Duplikat">${ic(COPY, 18)}</button><button type="button" class="ab" id="de" aria-label="Edit" title="Edit">${ic('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 18)}</button><button type="button" class="ab" id="dx" aria-label="Hapus" title="Hapus" style="color:var(--rd)">${ic(P.tr, 18)}</button></div>
     ${it.note ? `<div style="white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 14px">${esc(it.note)}</div>` : ''}
     <div class="lsx" style="margin-bottom:12px"><div style="display:flex;align-items:baseline;gap:8px"><h4 style="flex:1">Biaya</h4><span class="mu" id="dct"></span></div>
@@ -1210,7 +1419,7 @@ function openActRecap(t, it0) {
   const OK = ic('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>', 18), NO = ic('<circle cx="12" cy="12" r="9"/>', 18);
   const o = document.createElement('div'); o.className = 'ov';
   o.innerHTML = `<div class="sheet rc"><div class="ach"><span class="ib">${ic(aci(cat), 20)}</span><h3>${esc(it.title)}</h3></div>
-    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(f, it) ? `<span class="chip">Durasi ${durOf(f, it)}</span>` : ''}<span class="chip">${dlab(f, it.date)}</span>${inTrip(f, it.date) || it.date < f.start ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${esc(cat)}</span></div>
+    <div class="chips" style="margin-top:12px"><span class="chip on">${esc(it.time) || 'Tanpa jam'}</span>${durOf(f, it) ? `<span class="chip">Durasi ${durOf(f, it)}</span>` : ''}<span class="chip">${dlab(f, it.date)}</span>${!f.tbd && (inTrip(f, it.date) || it.date < f.start) ? `<span class="chip">${sd(it.date)}</span>` : ''}<span class="chip">${esc(cat)}</span></div>
     <div class="rb">${it.note ? `<div style="white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0 8px">${esc(it.note)}</div>` : ''}
       <h4 class="rh">Biaya${cs.length ? ' · ' + rp(tot) : ''}</h4>
       ${cs.length ? cs.map(c => `<div class="cr"><span class="cl">${esc(c.name) || esc(it.title)}</span><span class="cv">${rp(c.amt)}</span></div>`).join('') : '<span class="mu">Belum ada biaya.</span>'}
@@ -1285,7 +1494,7 @@ function tabPlan(t, el) {
     let html = '', last = null, sec = null;
     const hasPrep = pf.day === 'all' && L.some(i => i.date < t.start);
     L.forEach(i => { if (hasPrep) { const k = i.date < t.start ? 'prep' : 'trip'; if (k !== sec) { sec = k; html += `<h2 class="sec" style="margin:${html ? 22 : 6}px 0 4px">${k === 'prep' ? 'Persiapan Keberangkatan' : 'Perjalanan'}</h2>`; } }
-      if (pf.day === 'all' && dates.length > 1 && i.date !== last) { html += `<div class="dgh">${inTrip(t, i.date) || i.date < t.start ? dlab(t, i.date) + ' · ' : ''}${sd(i.date)}</div>`; last = i.date; } html += card(i); });
+      if (pf.day === 'all' && dates.length > 1 && i.date !== last) { html += `<div class="dgh">${t.tbd ? dlab(t, i.date) : (inTrip(t, i.date) || i.date < t.start ? dlab(t, i.date) + ' · ' : '') + sd(i.date)}</div>`; last = i.date; } html += card(i); });
     pl.innerHTML = L.length ? html : `<p class="mu" style="text-align:center;margin:28px 0">${t.itin.length ? 'Tidak ada kegiatan yang cocok.' : 'Belum ada kegiatan.<br>Tekan tombol <b>+</b> untuk menambah kegiatan.'}</p>`;
     mark();
   };
@@ -1299,51 +1508,8 @@ function tabPlan(t, el) {
   paint();
 }
 
-// ---- Rencana: daftar perjalanan (level 1) ----
+// ---- Status trip (dipakai PDF) ----
 const SLBL = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai'};
-let lf = {q: '', st: 'all', fav: false, sx: 0};
-function renderPlans() {
-  const ord = {on: 0, up: 1, done: 2};
-  const card = t => { const s = stat(t), w = wstat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1;
-    const cd = s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
-    return `<div class="ac tcl" data-id="${t.id}">
-    <div class="ach"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab" data-a="open" aria-label="Buka perjalanan">${ic(P.ex, 20)}</button></div>
-    <div class="ar"><button class="ab ${t.fav ? 'fv' : ''}" data-a="fav" aria-label="Favorit">${t.fav ? icf(STAR) : ic(STAR)}</button><button class="ab" data-a="map" aria-label="Buka tujuan di peta">${ic(NAVI)}</button></div>
-    <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${fd(t.start)} – ${fd(t.end)}</span></div>
-    <div class="chips"><span class="chip on">${SLBL[w]}</span><span class="chip">${days} hari</span>${cd ? `<span class="chip">${cd}</span>` : ''}<span class="chip">${t.itin.length} kegiatan</span></div>
-    <div class="ar bt"><button class="ab" data-a="open" aria-label="Rencana">${ic(P.cal)}</button><span class="vd"></span><button class="ab" data-a="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-a="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-a="edit" aria-label="Edit perjalanan">${PEN}</button><button class="ab" data-a="dup" aria-label="Duplikat perjalanan">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-a="del" aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`; };
-  A.innerHTML = `<div class="fl" id="fl"><button class="fb" data-f="all" aria-label="Semua perjalanan">${ic(GRID, 20)}</button><button class="fb" data-f="fav" aria-label="Favorit">${ic(STAR, 20)}</button>${Object.keys(SLBL).map(k => `<button class="fp" data-s="${k}">${SLBL[k]}</button>`).join('')}</div>
-    <div class="sb">${ic(SRCH, 20)}<input id="sq" type="search" placeholder="Cari nama perjalanan" value="${esc(lf.q)}" autocomplete="off"></div><div id="pl"></div>`;
-  const fl = $('#fl'), pl = $('#pl');
-  const paint = () => {
-    fl.querySelector('[data-f=all]').classList.toggle('on', lf.st === 'all' && !lf.fav);
-    fl.querySelector('[data-f=fav]').classList.toggle('on', lf.fav);
-    fl.querySelectorAll('[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === lf.st));
-    const q = lf.q.trim().toLowerCase();
-    const L = trips.filter(t => (lf.st === 'all' || wstat(t) === lf.st) && (!lf.fav || t.fav) && (!q || (t.name + ' ' + t.dest).toLowerCase().includes(q)))
-      .sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : a.start.localeCompare(b.start)));
-    pl.innerHTML = L.length ? L.map(card).join('') : `<p class="mu" style="text-align:center;margin:28px 0">${trips.length ? 'Tidak ada perjalanan yang cocok.' : 'Belum ada trip.<br>Tekan tombol <b>+</b> untuk membuat trip pertama.'}</p>`;
-  };
-  fl.onclick = e => { const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.f === 'all') { lf.st = 'all'; lf.fav = false; }
-    else if (b.dataset.f === 'fav') lf.fav = !lf.fav;
-    else if (b.dataset.s) lf.st = lf.st === b.dataset.s ? 'all' : b.dataset.s;
-    paint(); };
-  fl.onscroll = () => { lf.sx = fl.scrollLeft; };
-  $('#sq').oninput = e => { lf.q = e.target.value; paint(); };
-  pl.onclick = e => { const c = e.target.closest('.ac'); if (!c) return;
-    const t = trips.find(x => x.id === c.dataset.id); if (!t) return;
-    const b = e.target.closest('[data-a]'), a = b ? b.dataset.a : 'open';
-    if (a === 'fav') save(t, {fav: !t.fav});
-    else if (a === 'map') window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(t.dest), '_blank', 'noopener');
-    else if (a === 'edit') editTrip(t);
-    else if (a === 'dup') duplicateTrip(t);
-    else if (a === 'del') { if (confirm('Hapus trip ini beserta isinya?')) { if (cur === t.id) cur = null; deleteDoc(tripRef(t.id)); } }
-    else if (a === 'cost') { cur = t.id; planOpen = true; render(); $('#bd')?.scrollIntoView(); }
-    else if (a === 'pack') { cur = t.id; planOpen = true; render(); $('#pk')?.scrollIntoView(); }
-    else { cur = t.id; planOpen = true; render(); window.scrollTo(0, 0); } };
-  paint(); fl.scrollLeft = lf.sx;
-}
 
 // ---- Unduh PDF: rencana, biaya, dan packing list seluruh perjalanan ----
 const loadScript = src => new Promise((res, rej) => { const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('load')); document.head.appendChild(el); });
@@ -1366,7 +1532,7 @@ async function exportPdf(t) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...G);
   const tl = doc.splitTextToSize(t.name, W - 2 * M); doc.text(tl, M, y); y += tl.length * 8;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MU);
-  doc.text(`${t.dest} · ${fd(t.start)} - ${fd(t.end)} · ${days} hari`, M, y); y += 5;
+  doc.text(`${t.dest} · ${t.tbd ? 'Tanggal belum pasti' : fd(t.start) + ' - ' + fd(t.end) + ' · ' + days + ' hari'}`, M, y); y += 5;
   doc.text(`Dibuat ${fd(todayISO())} · ${SLBL[stat(t)]}`, M, y); y += 4;
   sec('Ringkasan');
   tbl({body: [['Anggaran', rp(t.budget)], ['Realisasi biaya', rp(tot)], [t.budget && tot > t.budget ? 'Melebihi anggaran' : 'Sisa anggaran', t.budget ? rp(Math.abs(t.budget - tot)) : '-'], ['Jumlah kegiatan', String(t.itin.length)]],
@@ -1379,7 +1545,7 @@ async function exportPdf(t) {
   if (!ds.length) note('Belum ada kegiatan.');
   ds.forEach(d => {
     need(30); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(23, 48, 31);
-    doc.text((d < t.start ? 'Persiapan Keberangkatan' : inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : 'Setelah trip') + ' · ' + sd(d), M, y); y += 2;
+    doc.text((d < t.start ? 'Persiapan Keberangkatan' : inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : 'Setelah trip') + (t.tbd ? '' : ' · ' + sd(d)), M, y); y += 2;
     const L = by[d].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
     tbl({head: [['Jam', 'Kegiatan', 'Kategori', 'Biaya']],
       body: L.map(i => { const dur = durOf(t, i), nm = (i.lists || []).map(l => l.name).filter(Boolean);
@@ -1400,7 +1566,7 @@ async function exportPdf(t) {
   else { note(`${ents.filter(e => e.done).length} dari ${ents.length} barang sudah siap`);
     pcats.forEach(c => { const g = ents.filter(e => e.cat === c); need(24);
       tbl({head: [[c + ' (' + g.filter(e => e.done).length + '/' + g.length + ')', 'Dari kegiatan', 'Status']],
-        body: g.map(e => [e.title, e.uses.map(u => u.title).filter(Boolean).join(', ') || '-', e.done ? 'Siap' : 'Belum']),
+        body: g.map(e => [e.title + (e.qty ? ' (' + qTxt(e.qty, e.unit) + ')' : ''), e.uses.map(u => u.title).filter(Boolean).join(', ') || '-', e.done ? 'Siap' : 'Belum']),
         columnStyles: {2: {cellWidth: 20}}}); }); }
 
   // Footer tiap halaman
@@ -1414,7 +1580,7 @@ async function exportPdf(t) {
 function renderPlanDetail() {
   const t = getTrip();
   A.innerHTML = `<div class="dhd"><button class="hb" id="bk" aria-label="Kembali ke daftar perjalanan">${ic('<path d="m15 18-6-6 6-6"/>', 24)}</button>
-    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${esc(t.dest)} · ${fd(t.start)} – ${fd(t.end)}</div></div><button class="hb" id="pdf" aria-label="Unduh PDF" title="Unduh PDF">${ic('<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', 22)}</button><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
+    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${esc(t.dest)} · ${trg(t)}</div></div><button class="hb" id="pdf" aria-label="Unduh PDF" title="Unduh PDF">${ic('<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', 22)}</button><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
     <div class="pdg"><div class="pdl"><div id="tb"></div></div><div class="pdr"><h2 class="sec" style="margin:22px 0 10px">Anggaran &amp; Realisasi Biaya</h2><div id="bd"></div><h2 class="sec" style="margin:22px 0 10px">Packing List</h2><div id="pk"></div><h2 class="sec" style="margin:22px 0 10px">Storage</h2><div id="sg"></div></div></div>
     <p style="text-align:center"><button class="del" id="dt">Hapus trip ini</button></p>`;
   $('#bk').onclick = () => { planOpen = false; render(); window.scrollTo(0, 0); };
@@ -1491,23 +1657,32 @@ function tabCost(t, el) {
 
 // ---- Edit trip (nama, tujuan, tanggal) ----
 function editTrip(t) {
-  const out = t.itin.filter(i => !inTrip(t, i.date)).length;
-  openEdit('Edit perjalanan', `<div class="row"><input id="tn" placeholder="Nama trip" required value="${esc(t.name)}"></div>
+  const ov = openEdit('Edit perjalanan', `<div class="row"><input id="tn" placeholder="Nama trip" required value="${esc(t.name)}"></div>
     <div class="row"><input id="td" placeholder="Tujuan" required value="${esc(t.dest)}"></div>
-    <div class="mu" style="margin:0 0 4px">Tanggal trip</div>
-    <div class="row">${dField('tsa', t.start)}${dField('tse', t.end)}</div>
-    <div class="ck"><label><input type="checkbox" id="tk1" checked><span>Geser kegiatan mengikuti tanggal mulai baru</span></label></div>
-    <div class="mu" style="margin-bottom:6px">Jika tanggal mulai tidak berubah, kegiatan tidak bergeser. Kegiatan persiapan sebelum keberangkatan tetap dipertahankan; kegiatan yang melewati tanggal selesai baru dipindah ke hari terakhir trip.</div>`, m => {
+    <div id="tdr"><div class="mu" style="margin:0 0 4px">Tanggal trip</div>
+    <div class="row">${dField('tsa', t.tbd ? '' : t.start)}${dField('tse', t.tbd ? '' : t.end)}</div></div>
+    <div class="ck"><label><input type="checkbox" id="ttbd" ${t.tbd ? 'checked' : ''}><span>Tanggal belum pasti (masih perkiraan trip)</span></label></div>
+    <div id="tshift"><div class="ck"><label><input type="checkbox" id="tk1" checked><span>Geser kegiatan mengikuti tanggal mulai baru</span></label></div>
+    <div class="mu" style="margin-bottom:6px">Jika tanggal mulai tidak berubah, kegiatan tidak bergeser. Kegiatan persiapan sebelum keberangkatan tetap dipertahankan; kegiatan yang melewati tanggal selesai baru dipindah ke hari terakhir trip.</div></div>`, m => {
+    const base = {name: m.querySelector('#tn').value.trim(), dest: m.querySelector('#td').value.trim()};
+    if (m.querySelector('#ttbd').checked) {
+      save(t, {...base, tbd: true, start: '', end: '',
+        ...(!t.tbd ? {itin: t.itin.map(i => ({...i, date: addDays(VB, Math.max(0, dayDiff(i.date, t.start)))}))} : {})});
+      return true;
+    }
     const ns = d2iso(m.querySelector('#tsa').value), ne = d2iso(m.querySelector('#tse').value);
     if (!ns || !ne) return alert('Isi tanggal dengan format dd/mm/yyyy.');
     if (ne < ns) return alert('Tanggal selesai harus setelah tanggal mulai.');
-    const off = m.querySelector('#tk1').checked ? dayDiff(ns, t.start) : 0;
+    const off = (t.tbd || m.querySelector('#tk1').checked) ? dayDiff(ns, t.start) : 0;
     const clamp = d => { const x = off ? addDays(d, off) : d; return x > ne ? ne : x; };
-    const changed = ns !== t.start || ne !== t.end;
-    save(t, {name: m.querySelector('#tn').value.trim(), dest: m.querySelector('#td').value.trim(), start: ns, end: ne,
+    const changed = t.tbd || ns !== t.start || ne !== t.end;
+    save(t, {...base, tbd: false, start: ns, end: ne,
       ...(changed ? {itin: t.itin.map(i => ({...i, date: clamp(i.date)}))} : {})});
     return true;
   });
+  const cb = ov.querySelector('#ttbd'), rw = ov.querySelector('#tdr'), sh = ov.querySelector('#tshift');
+  const sync = () => { const on = cb.checked; rw.style.display = on ? 'none' : ''; sh.style.display = (on || t.tbd) ? 'none' : ''; rw.querySelectorAll('.dt').forEach(i => i.required = !on); };
+  cb.onchange = sync; sync();
 }
 
 // ---- Duplikat trip ----
@@ -1516,20 +1691,22 @@ function duplicateTrip(t) {
   const dur = dayDiff(t.end, t.start), ns0 = todayISO();
   openEdit('Duplikat perjalanan', `<div class="row"><input id="dn" placeholder="Nama trip" required value="${esc(t.name + ' (2)')}"></div>
     <div class="mu" style="margin:0 0 4px">Tanggal trip baru</div>
-    <div class="row">${dField('dsa', ns0)}${dField('dse', addDays(ns0, dur))}</div>
+    ${t.tbd ? '<div class="mu" style="margin-bottom:4px">Tanggal belum pasti (mengikuti trip asal)</div>' : `<div class="row">${dField('dsa', ns0)}${dField('dse', addDays(ns0, dur))}</div>`}
     <div class="mu" style="margin:6px 0 2px">Salin ke trip baru</div>
     <div class="ck"><label><input type="checkbox" id="dk1" checked><span>Kegiatan (${t.itin.length})</span></label>
     <label><input type="checkbox" id="dk2" checked><span>Packing list (${packAll(t).length}, centang direset)</span></label>
     <label><input type="checkbox" id="dk3" checked><span>Anggaran (${rp(t.budget)})</span></label></div>
     <div class="mu" style="margin-bottom:6px">Kegiatan ikut bergeser mengikuti tanggal mulai baru. Biaya yang tertulis pada kegiatan ikut tersalin; realisasi biaya yang dicatat manual tidak disalin.</div>`, m => {
-    const ns = d2iso(m.querySelector('#dsa').value), ne = d2iso(m.querySelector('#dse').value);
-    if (!ns || !ne) return alert('Isi tanggal dengan format dd/mm/yyyy.');
-    if (ne < ns) return alert('Tanggal selesai harus setelah tanggal mulai.');
-    const off = dayDiff(ns, t.start), clamp = d => { const x = addDays(d, off); return x > ne ? ne : x; };
-    const nt = {name: m.querySelector('#dn').value.trim(), dest: t.dest, start: ns, end: ne,
+    const ns = t.tbd ? '' : d2iso(m.querySelector('#dsa').value), ne = t.tbd ? '' : d2iso(m.querySelector('#dse').value);
+    if (!t.tbd) {
+      if (!ns || !ne) return alert('Isi tanggal dengan format dd/mm/yyyy.');
+      if (ne < ns) return alert('Tanggal selesai harus setelah tanggal mulai.');
+    }
+    const off = t.tbd ? 0 : dayDiff(ns, t.start), clamp = t.tbd ? (d => d) : (d => { const x = addDays(d, off); return x > ne ? ne : x; });
+    const nt = {name: m.querySelector('#dn').value.trim(), dest: t.dest, tbd: !!t.tbd, start: ns, end: ne,
       budget: m.querySelector('#dk3').checked ? (t.budget || 0) : 0,
       itin: m.querySelector('#dk1').checked ? t.itin.map(i => ({...i, id: uid(), date: clamp(i.date), fav: false, lists: (i.lists || []).map(l => ({...l, id: uid()}))})) : [],
-      porder: t.porder || [], exp: [], pdone: [], pack: !m.querySelector('#dk2').checked ? [] : (m.querySelector('#dk1').checked ? t.pack : packAll(t)).map(p => ({id: uid(), title: p.title, cat: p.cat || 'Lainnya', done: false})),
+      porder: t.porder || [], pqty: m.querySelector('#dk2').checked ? (t.pqty || {}) : {}, exp: [], pdone: [], pack: !m.querySelector('#dk2').checked ? [] : (m.querySelector('#dk1').checked ? t.pack : packAll(t)).map(p => ({id: uid(), title: p.title, cat: p.cat || 'Lainnya', done: false})),
       created: Date.now()};
     addDoc(tripsCol(), nt).then(r => { cur = r.id; page = 'plan'; planOpen = true; render(); window.scrollTo(0, 0); })
       .catch(e => alert('Gagal menduplikat: ' + e.message));
@@ -1543,12 +1720,13 @@ let cal = {y: new Date().getFullYear(), m: new Date().getMonth(), sel: null, exp
 function renderCal() {
   const today = todayISO(), y = cal.y, m = cal.m, ym = `${y}-${String(m + 1).padStart(2, '0')}`;
   if (!cal.sel) cal.sel = today;
-  const tripsOn = d => trips.filter(t => d >= t.start && d <= t.end).sort((a, b) => a.start.localeCompare(b.start) || (a.created || 0) - (b.created || 0));
-  const actsOn = d => trips.flatMap(t => t.itin.filter(i => i.date === d).map(i => ({t, i})));
-  const isTrip = d => trips.some(t => d >= t.start && d <= t.end);
+  const dtr = trips.filter(t => !t.tbd);
+  const tripsOn = d => dtr.filter(t => d >= t.start && d <= t.end).sort((a, b) => a.start.localeCompare(b.start) || (a.created || 0) - (b.created || 0));
+  const actsOn = d => dtr.flatMap(t => t.itin.filter(i => i.date === d).map(i => ({t, i})));
+  const isTrip = d => dtr.some(t => d >= t.start && d <= t.end);
   const first = (new Date(y, m, 1).getDay() + 6) % 7, nd = new Date(y, m + 1, 0).getDate();
   const ms = ym + '-01', me = `${ym}-${String(nd).padStart(2, '0')}`;
-  const inM = trips.filter(t => t.start <= me && t.end >= ms).sort((a, b) => a.start.localeCompare(b.start) || (a.created || 0) - (b.created || 0));
+  const inM = dtr.filter(t => t.start <= me && t.end >= ms).sort((a, b) => a.start.localeCompare(b.start) || (a.created || 0) - (b.created || 0));
   const lane = {}, placed = [];
   inM.forEach(t => { let k = 0; while (placed.some(p => lane[p.id] === k && p.start <= t.end && p.end >= t.start)) k++; lane[t.id] = k; placed.push(t); });
   let cells = '';
@@ -1782,21 +1960,22 @@ function tabStore(t, el) {
   sq.oninput = showQ; sq.onfocus = showQ; sq.onblur = () => setTimeout(hideQ, 120);
 }
 
-function tabPack(t, el) {
+function tabPack(t, el, full) {
   if (packQT !== t.id) { packQT = t.id; packQ = ''; } // pencarian dikosongkan saat pindah trip
   const ents = packAll(t), d = ents.filter(e => e.done).length;
   const cats = [...LCAT, ...ents.map(e => e.cat)].filter((c, i, a) => a.indexOf(c) === i && ents.some(e => e.cat === c));
   if (!cats.includes(packCat)) packCat = cats[0];
   const ci = Math.max(0, cats.indexOf(packCat));
   const row = (e, noGrip) => { const own = !e.uses.length, u = e.uses.map(x => x.title).filter(Boolean), loc = stLoc(t, e.key);
-    return `<div class="item" data-pk="${esc(e.key)}">${noGrip ? '' : `<span class="gr" data-gr role="button" aria-label="Geser untuk mengurutkan" title="Geser untuk mengurutkan">${ic('<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>', 18)}</span>`}<input type="checkbox" data-c="${esc(e.key)}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(e.title)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${!loc && !/pouch/i.test(e.cat) ? `<span class="rdot" data-sd="${esc(e.key)}" role="button" tabindex="0" title="Belum masuk storage — ketuk untuk memilih" aria-label="Belum masuk storage, ketuk untuk memilih storage"></span>` : ''}${esc(e.title)}</span>${u.length ? `<span class="mu">Dari kegiatan: ${esc(u.slice(0, 2).join(', '))}${u.length > 2 ? ' +' + (u.length - 2) + ' lagi' : ''}</span>` : ''}${loc ? `<span class="mu">Disimpan di: ${esc(loc)}</span>` : ''}</span>${own ? `<button class="del ed" data-e="${esc(e.key)}" aria-label="Edit">${PEN}</button><button class="del" data-x="${esc(e.key)}" aria-label="Hapus">✕</button>` : `<button class="del ed" data-ec="${esc(e.key)}" aria-label="Ubah kategori" title="Ubah kategori">${PEN}</button>`}</div>`; };
-  el.innerHTML = `<form class="card" id="f"><div class="row"><input id="pn" placeholder="Nama barang" required style="flex:1 1 0"><select id="pc" style="flex:0 0 104px">${catOpts(t, lastCat)}</select><button style="flex:0 0 76px;padding-left:8px;padding-right:8px">Tambah</button></div>
+    return `<div class="item" data-pk="${esc(e.key)}">${noGrip ? '' : `<span class="gr" data-gr role="button" aria-label="Geser untuk mengurutkan" title="Geser untuk mengurutkan">${ic('<circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/>', 18)}</span>`}<input type="checkbox" data-c="${esc(e.key)}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(e.title)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${!loc && !/pouch/i.test(e.cat) ? `<span class="rdot" data-sd="${esc(e.key)}" role="button" tabindex="0" title="Belum masuk storage — ketuk untuk memilih" aria-label="Belum masuk storage, ketuk untuk memilih storage"></span>` : ''}${esc(e.title)}${e.qty ? ` <b class="qb">${qTxt(e.qty, e.unit)}</b>` : ''}</span>${u.length ? `<span class="mu">Dari kegiatan: ${esc(u.slice(0, 2).join(', '))}${u.length > 2 ? ' +' + (u.length - 2) + ' lagi' : ''}</span>` : ''}${loc ? `<span class="mu">Disimpan di: ${esc(loc)}</span>` : ''}</span>${own ? `<button class="del ed" data-e="${esc(e.key)}" aria-label="Edit">${PEN}</button><button class="del" data-xf="${esc(e.key)}" aria-label="Hapus dan jangan tampilkan lagi di rekomendasi" title="Hapus &amp; jangan tampilkan lagi di rekomendasi">${ic('<path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/>', 18)}</button><button class="del" data-x="${esc(e.key)}" aria-label="Hapus dari trip ini" title="Hapus dari trip ini saja">✕</button>` : `<button class="del ed" data-ec="${esc(e.key)}" aria-label="Ubah kategori" title="Ubah kategori">${PEN}</button>`}</div>`; };
+  el.innerHTML = `<form class="card" id="f"><div class="row"><input id="pn" placeholder="Nama barang" required style="flex:1 1 0"><input id="pq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" style="flex:0 0 76px;width:76px;text-align:center"><select id="pu" aria-label="Satuan" style="flex:0 0 76px;width:76px">${qOpts('pcs')}</select></div>
+    <div class="row"><select id="pc" style="flex:1 1 0">${catOpts(t, lastCat)}</select><button style="flex:0 0 96px;padding-left:8px;padding-right:8px">Tambah</button></div>
     <div class="row"><input id="pcn" placeholder="Nama kategori baru" maxlength="30"></div></form>
     <div class="card" id="psug" style="display:none"></div>
     <div class="sb">${ic(SRCH, 20)}<input id="psq" type="search" placeholder="Cari checklist barang" value="${esc(packQ)}" autocomplete="off"></div>
     <div class="card" id="psr" style="display:none"></div>
-    <div class="card" id="pmain"><div class="mu">${d}/${ents.length} siap</div><div class="bar"><i style="width:${ents.length ? d / ents.length * 100 : 0}%"></i></div>${ents.length ? [cats[ci]].map(c => { const g = ents.filter(e => e.cat === c), vis = showChecked ? g : g.filter(e => !e.done), nd = g.filter(e => e.done).length;
-      return `<div class="lgh lgn">${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${nd}/${g.length}</span></span>${cats.length > 1 ? `<button type="button" class="lnav" data-pnv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + vis.map(e => row(e)).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : ''); }).join('') + (d === ents.length && !showChecked ? '<div class="mu" style="margin:10px 0">Semua barang sudah siap ✓</div>' : '') + (d ? `<div class="mu" style="margin-top:10px"><a href="#" id="psh">${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${d} yang sudah dicentang</a></div>` : '') : '<span class="mu">Daftar kosong.</span>'}</div>`;
+    <div class="card" id="pmain"><div class="mu">${d}/${ents.length} siap</div><div class="bar"><i style="width:${ents.length ? d / ents.length * 100 : 0}%"></i></div>${ents.length ? (full ? cats : [cats[ci]]).map(c => { const g = ents.filter(e => e.cat === c), vis = showChecked || full ? g : g.filter(e => !e.done), nd = g.filter(e => e.done).length;
+      return `<div class="lgh lgn">${cats.length > 1 && !full ? `<button type="button" class="lnav" data-pnv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${nd}/${g.length}</span></span>${cats.length > 1 && !full ? `<button type="button" class="lnav" data-pnv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + vis.map(e => row(e)).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : ''); }).join('') + (d === ents.length && !showChecked ? '<div class="mu" style="margin:10px 0">Semua barang sudah siap ✓</div>' : '') + (d && !full ? `<div class="mu" style="margin-top:10px"><a href="#" id="psh">${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${d} yang sudah dicentang</a></div>` : '') : '<span class="mu">Daftar kosong.</span>'}</div>`;
   catPick(el.querySelector('#pc'), el.querySelector('#pcn'));
   // rekomendasi barang dari trip sebelumnya untuk kategori yang dipilih; dicentang = masuk ke list trip ini
   const sgGet = k => { try { return JSON.parse(localStorage.getItem(k)) || null; } catch { return null; } }, sgSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
@@ -1822,26 +2001,34 @@ function tabPack(t, el) {
     box.querySelectorAll('[data-sg]').forEach(b => b.onchange = () => { if (!b.checked) return;
       const e = out.find(q => q.key === b.dataset.sg), f = freshTrip(t.id) || t; if (!e || packAll(f).some(q => q.key === e.key)) return;
       lastCat = c; packCat = c; save(f, {pack: [...(f.pack || []), {id: uid(), title: e.title, cat: c, done: false}]}); }); };
-  el.querySelector('#pc').addEventListener('change', sugPaint); sugPaint();
-  el.querySelectorAll('[data-pnv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.pnv]; if (n) { packCat = n; tabPack(freshTrip(t.id) || t, el); } });
-  const psh = el.querySelector('#psh'); if (psh) psh.onclick = e => { e.preventDefault(); showChecked = !showChecked; tabPack(freshTrip(t.id) || t, el); };
+  el.querySelector('#pc').addEventListener('change', () => { if (!full) sugPaint(); }); if (!full) sugPaint();
+  el.querySelectorAll('[data-pnv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.pnv]; if (n) { packCat = n; tabPack(freshTrip(t.id) || t, el, full); } });
+  const psh = el.querySelector('#psh'); if (psh) psh.onclick = e => { e.preventDefault(); showChecked = !showChecked; tabPack(freshTrip(t.id) || t, el, full); };
   el.querySelector('#f').onsubmit = e => { e.preventDefault();
     const nm = el.querySelector('#pn').value.trim(), ct = readCat(el.querySelector('#pc'), el.querySelector('#pcn'));
     if (!nm) return; if (!ct) return alert('Isi nama kategori baru.');
     if (ents.some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di packing list.');
-    lastCat = ct; packCat = ct; refocus = '#pn'; save(t, {pack: [...t.pack, {id: uid(), title: nm, cat: ct, done: false}]}); };
+    lastCat = ct; packCat = ct; const qo = qRead(el.querySelector('#pq'), el.querySelector('#pu'));
+    refocus = '#pn'; save(t, {pack: [...t.pack, {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); };
   const wireRows = root => {
   root.querySelectorAll('[data-c]').forEach(c => c.onchange = () => togglePack(t.id, c.dataset.c, c.checked));
   root.querySelectorAll('[data-sd]').forEach(d => { const go = ev => { ev.stopPropagation(); ev.preventDefault(); const x = ents.find(q => q.key === d.dataset.sd); if (x) pickStore(freshTrip(t.id) || t, x.title); };
     d.onclick = go; d.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') go(ev); }; });
-  root.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const pack = t.pack.filter(p => nk(p.title) !== b.dataset.x); save(t, {pack, pdone: keepDone(t, t.itin, pack)}); });
+  root.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { const pack = t.pack.filter(p => nk(p.title) !== b.dataset.x); save(t, {pack, pdone: keepDone(t, t.itin, pack), pqty: packAll({...t, pack}).some(q => q.key === b.dataset.x) ? (t.pqty || {}) : setQ(t.pqty, b.dataset.x, '', 0)}); });
+  // ikon sampah: hapus dari trip ini + sembunyikan permanen dari rekomendasi trip berikutnya (disimpan di perangkat ini)
+  root.querySelectorAll('[data-xf]').forEach(b => b.onclick = () => { const k = b.dataset.xf, x = ents.find(q => q.key === k); if (!x) return;
+    if (!confirm('Hapus "' + x.title + '" dari trip ini dan jangan tampilkan lagi di rekomendasi trip berikutnya?')) return;
+    const cs = new Set([x.cat]); (trips || []).forEach(z => packAll(z).forEach(e => { if (e.key === k) cs.add(e.cat); }));
+    try { const h = new Set(JSON.parse(localStorage.getItem('et-sughide')) || []); cs.forEach(c => h.add(c + '|' + k)); localStorage.setItem('et-sughide', JSON.stringify([...h])); } catch {}
+    const pack = t.pack.filter(p => nk(p.title) !== k);
+    save(t, {pack, pdone: keepDone(t, t.itin, pack), pqty: packAll({...t, pack}).some(q => q.key === k) ? (t.pqty || {}) : setQ(t.pqty, k, '', 0)}); });
   root.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { const x = ents.find(q => q.key === b.dataset.e); if (!x) return;
-    const m = openEdit('Edit barang', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><select id="ecat">${catOpts(t, x.cat)}</select></div><div class="row"><input id="ecn" placeholder="Nama kategori baru" maxlength="30"></div>${useBox(t, x.key)}`, m => {
+    const m = openEdit('Edit barang', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><input id="eq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" value="${x.qty ? x.qty.toLocaleString('id-ID') : ''}" style="flex:1 1 0"><select id="eu" aria-label="Satuan" style="flex:1 1 0">${qOpts(x.unit)}</select></div><div class="row"><select id="ecat">${catOpts(t, x.cat)}</select></div><div class="row"><input id="ecn" placeholder="Nama kategori baru" maxlength="30"></div>${useBox(t, x.key)}`, m => {
       const nm = m.querySelector('#en').value.trim(), ct = readCat(m.querySelector('#ecat'), m.querySelector('#ecn'));
       if (!nm || !ct) return alert('Isi nama barang dan kategori.');
       if (nk(nm) !== x.key && ents.some(q => q.key === nk(nm))) return alert('Barang ini sudah ada di packing list.');
       const pack = t.pack.map(q => nk(q.title) === x.key ? {...q, title: nm, cat: ct} : q), itin = applyUse(t, x.key, nm, ct, readUse(m));
-      save(t, {pack, itin, porder: renPo(t, x.key, nk(nm)), pdone: keepDone(t, itin, pack)}); return true;
+      save(t, {pack, itin, store: renSt(t, x.key, nm), porder: renPo(t, x.key, nk(nm)), pqty: setQ(t.pqty, x.key, nk(nm), qRead(m.querySelector('#eq'), m.querySelector('#eu'))), pdone: keepDone(t, itin, pack)}); return true;
     });
     if (m) { catPick(m.querySelector('#ecat'), m.querySelector('#ecn')); wireUse(m); } });
   root.querySelectorAll('[data-ec]').forEach(b => b.onclick = () => { const x = ents.find(q => q.key === b.dataset.ec); if (!x) return;
@@ -1861,7 +2048,7 @@ function tabPack(t, el) {
     const pack = (f.pack || []).map(p => nk(p.title) === x.key ? {...p, title: nm} : p);
     const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === x.key) ? {...i, lists: i.lists.map(l => nk(l.name) === x.key ? {...l, name: nm} : l)} : i);
     const pd = new Set(f.pdone || []); if (nn !== x.key && pd.has(x.key)) { pd.delete(x.key); pd.add(nn); }
-    save(f, {pack, itin, porder: renPo(f, x.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); return true; };
+    save(f, {pack, itin, store: renSt(f, x.key, nm), porder: renPo(f, x.key, nn), pqty: mvQ(f.pqty, x.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); return true; };
   const startRename = (span, x) => { const inp = document.createElement('input'); inp.value = x.title; inp.maxLength = 60; inp.setAttribute('aria-label', 'Ganti nama barang'); inp.style.cssText = 'padding:4px 8px;width:100%';
     span.replaceWith(inp); inp.focus(); inp.select(); let fin = false;
     const end = ok => { if (fin) return; fin = true; if (!(ok && renameEnt(x, inp.value)) && inp.isConnected) inp.replaceWith(span); };
@@ -1895,7 +2082,7 @@ function tabPack(t, el) {
     const end = e => {
       h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', end); h.removeEventListener('pointercancel', end);
       cancelAnimationFrame(raf); row.style.transform = ''; row.classList.remove('dragging');
-      if (!moved || e.type === 'pointercancel') { if (moved) tabPack(freshTrip(t.id) || t, el); return; }
+      if (!moved || e.type === 'pointercancel') { if (moved) tabPack(freshTrip(t.id) || t, el, full); return; }
       const keys = [...pm.querySelectorAll('.item[data-pk]')].map(r => r.dataset.pk), f = freshTrip(t.id) || t;
       const full = packAll(f).map(x => x.key), grp = new Set(keys), slots = [];
       full.forEach((k, i) => { if (grp.has(k)) slots.push(i); });
