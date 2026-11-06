@@ -56,7 +56,7 @@ button.del svg{color:#000}[data-theme=dark] button.del svg{color:var(--tx)} /* i
 .hb{width:auto;background:transparent;color:var(--tx);padding:6px;display:inline-flex}
 .hero{background:var(--hero);border-radius:20px;padding:14px;text-align:center;margin-bottom:18px}
 .hero h2{font-family:Georgia,"Times New Roman",serif;font-size:calc(26px*var(--fs,1));margin:0 0 6px}.hero p{color:var(--mu);margin:0 auto 16px;max-width:260px;font-size:calc(14px*var(--fs,1))}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.tile{background:var(--tile);border-radius:14px;padding:12px 4px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.tile{background:var(--tile);border-radius:14px;padding:12px 4px}
 .tile.tf{cursor:pointer;border:2px solid transparent;transition:border-color .15s,background .15s}.tile.tf:hover{border-color:var(--bd)}.tile.tf.act{border-color:var(--g)}
 .tile b{display:block;font-family:Georgia,"Times New Roman",serif;font-size:calc(28px*var(--fs,1))}.tile span{font-size:calc(12px*var(--fs,1));color:var(--mu)}
 h2.sec{font-family:Georgia,"Times New Roman",serif;font-size:calc(19px*var(--fs,1));margin:6px 0 12px}
@@ -119,6 +119,8 @@ textarea{resize:vertical;min-height:76px}
 .ach{display:flex;align-items:center;gap:12px}.ach h3{flex:1;min-width:0;margin:0;font-family:Georgia,"Times New Roman",serif;font-size:calc(19px*var(--fs,1));overflow-wrap:anywhere}
 .ar{display:flex;align-items:center;gap:2px;margin:6px 0 8px -6px}.ar.bt{margin:4px 0 0 -6px}.ar .sp{flex:1}
 .ab.fv{color:var(--g)}
+.lac{display:flex;align-items:center;gap:6px;flex:0 0 auto;cursor:pointer;font-size:calc(13px*var(--fs,1));color:var(--tx);white-space:nowrap}.lac input{width:20px;height:20px;padding:0;margin:0;flex:none}
+.ab.pnb.on{color:var(--g)}.ab.pnb.on svg{fill:currentColor}.ab.pnb:not(.on) svg{transform:rotate(45deg)}
 .nt{color:var(--mu);font-size:calc(13px*var(--fs,1));margin:0 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .vd{width:1px;height:18px;background:var(--bd);margin:0 4px}
 .tcl{cursor:pointer}
@@ -225,7 +227,7 @@ main>#pl>p{grid-column:1/-1}
   body.in #fab::after{content:attr(aria-label);font-size:calc(14px*var(--fs,1));font-weight:600}
   body.in main{max-width:none;margin:0 0 0 232px;padding:24px max(32px,calc((100vw - 232px - 1100px) / 2)) 56px}
   .pdg{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px;align-items:start}
-  .pdr>h2:first-child{margin-top:0!important}
+  .pdr>h2:first-child,.pdl>h2:first-child{margin-top:0!important}
   .calw{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
   .cd{min-height:78px}
   .pph{display:flex;gap:12px;align-items:stretch;margin-bottom:12px}
@@ -250,7 +252,7 @@ main>#pl>p{grid-column:1/-1}
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import {getFirestore,collection,doc,addDoc,setDoc,deleteDoc,onSnapshot,query,orderBy} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import {getFirestore,collection,doc,addDoc,setDoc,deleteDoc,deleteField,writeBatch,onSnapshot,query,orderBy} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA0kZTm3iMIoXG0CCoLuKaGxLgUVGhYSTM",
@@ -729,16 +731,63 @@ const getTrip = () => trips.find(t => t.id === cur);
 let refocus = null, listSheet = null;
 const save = (t, patch) => setDoc(tripRef(t.id), patch, {merge: true});
 
+// ---- Database Prepare: katalog barang per akun (users/{uid}/prep). Barang di Prepare TIDAK ikut terhapus saat trip dihapus; hanya hilang bila dihapus manual lewat fitur hapus di Prepare ----
+let prepCat = [], prepReady = false, tripsReady = false, prepUnsub = null;
+const delGuard = new Set(); // kunci barang yang sedang dihapus/diganti nama (sementara, agar sinkron otomatis tidak menambahkannya lagi)
+const pid = k => 'k_' + encodeURIComponent(k).replace(/\./g, '%2E');
+const prepDoc = k => doc(db, 'users', user.uid, 'prep', pid(k));
+const prepFail = e => { console.warn('Database Prepare tidak bisa diakses (cek Firestore Rules):', e); prepReady = false; };
+const prepPut = (k, d) => (!prepReady || !user) ? Promise.resolve() : setDoc(prepDoc(k), {key: k, ...d}, {merge: true}).catch(prepFail);
+const prepDel = k => (!prepReady || !user) ? Promise.resolve() : deleteDoc(prepDoc(k)).catch(prepFail);
+const guardKeys = (...ks) => { ks.forEach(k => delGuard.add(k)); setTimeout(() => ks.forEach(k => delGuard.delete(k)), 8000); };
+const qFields = (n, u) => n ? {qty: n, unit: u || 'pcs'} : {qty: deleteField(), unit: deleteField()};
+const delMsg = () => prepReady ? 'Hapus trip ini beserta isinya (rencana, biaya, packing list, dan storage)?\nBarang di Prepare dan di trip lain tidak ikut terhapus.' : 'Hapus trip ini beserta isinya?';
+function prepMerge() { // gabungan barang dari semua trip
+  const m = new Map();
+  trips.forEach(t => packAll(t).forEach(e => { let x = m.get(e.key);
+    if (!x) { x = {key: e.key, title: e.title, cat: e.cat, qty: 0, unit: 'pcs'}; m.set(e.key, x); }
+    if (x.cat === 'Lainnya' && e.cat !== 'Lainnya') x.cat = e.cat;
+    if (!x.qty && e.qty && !e.acc) { x.qty = e.qty; x.unit = e.unit; } }));
+  return m;
+}
+// salin barang dari semua trip ke database Prepare (hanya menambah/memperbarui, tidak pernah menghapus)
+function syncPrep() {
+  if (!user || !prepReady || !tripsReady) return;
+  const have = new Map(prepCat.map(c => [c.key, c])), ops = [];
+  prepMerge().forEach((x, k) => { if (delGuard.has(k)) return; const c = have.get(k);
+    if (!c || c.title !== x.title || c.cat !== x.cat || (x.qty && (c.qty !== x.qty || c.unit !== x.unit))) {
+      const cs = !c ? [x.cat] : c.cat !== x.cat ? [...new Set((c.cats && c.cats.length ? c.cats : [c.cat]).map(q => q === c.cat ? x.cat : q))] : null;
+      ops.push([k, {key: k, title: x.title, cat: x.cat, ...(cs ? {cats: cs} : {}), ...(x.qty ? {qty: x.qty, unit: x.unit} : {})}]); } });
+  for (let i = 0; i < ops.length; i += 400) { const b = writeBatch(db); ops.slice(i, i + 400).forEach(([k, d]) => b.set(prepDoc(k), d, {merge: true})); b.commit().catch(prepFail); }
+}
+// pastikan barang sebuah trip sudah tersimpan di database Prepare sebelum trip dihapus
+// saran nama barang: barang trip + semua barang yang ada di Prepare (tanpa dobel)
+const withPrep = arr => { const ks = new Set(arr.map(e => e.key)); prepCat.forEach(c => { if (c && c.key && !ks.has(c.key)) { ks.add(c.key); arr.push({key: c.key, title: c.title || c.key, cat: c.cat || 'Lainnya', qty: +c.qty || 0, unit: c.unit || 'pcs', uses: [], manual: [], done: false}); } }); return arr; };
+async function prepKeepTrip(id) {
+  const t = freshTrip(id); if (!t || !prepReady) return;
+  const have = new Set(prepCat.map(c => c.key));
+  await Promise.all(packAll(t).filter(e => !have.has(e.key)).map(e => prepPut(e.key, {title: e.title, cat: e.cat, cats: [e.cat], ...(e.qty ? {qty: e.qty, unit: e.unit} : {})})));
+}
+// ganti nama barang di dalam trip = ganti nama (bukan hapus): nama lama dibuang dari Prepare bila tidak dipakai di mana pun lagi
+function prepRename(ok, nm) {
+  const nn = nk(nm); if (nn === ok) return;
+  setTimeout(() => { if (!prepReady || !user || !prepCat.some(c => c.key === ok)) return;
+    const used = k => trips.some(z => packAll(z).some(e => e.key === k));
+    if (used(ok) || !used(nn)) return; guardKeys(ok); prepDel(ok); }, 1200);
+}
+
 onAuthStateChanged(auth, u => {
-  user = u; if (unsub) unsub(); trips = []; cur = null; page = 'trips'; planOpen = false;
+  user = u; if (unsub) unsub(); if (prepUnsub) { prepUnsub(); prepUnsub = null; } trips = []; prepCat = []; prepReady = false; tripsReady = false; delGuard.clear(); cur = null; page = 'trips'; planOpen = false;
   $('#top').style.display = u ? '' : 'none';
   $('#nav').style.display = u ? '' : 'none';
   document.body.classList.toggle('in', !!u); // aktifkan tata letak desktop (sidebar) hanya saat sudah masuk
   if (!u) return renderAuth();
+  prepUnsub = onSnapshot(collection(db, 'users', u.uid, 'prep'), s => { prepCat = s.docs.map(d => d.data()).filter(c => c && c.key); prepReady = true; syncPrep(); if (page === 'prep') { const y = window.scrollY; render(); window.scrollTo(0, y); } }, prepFail);
   unsub = onSnapshot(query(tripsCol(), orderBy('created', 'desc')), s => {
     trips = s.docs.map(d => { const o = {id: d.id, itin: [], exp: [], pack: [], pdone: [], store: [], ...d.data()};
       if (o.tbd) { const mx = Math.max(0, ...o.itin.filter(i => isV(i.date)).map(i => dayDiff(i.date, VB))); o.start = VB; o.end = addDays(VB, mx); }
       return o; });
+    tripsReady = true; syncPrep();
     if (!trips.find(t => t.id === cur)) { cur = trips[0]?.id || null; planOpen = false; }
     const y = window.scrollY, pg = page, op = planOpen, cu = cur;
     render();
@@ -784,28 +833,32 @@ function renderPrep() {
   prepAdd = null;
   const ord = {on: 0, up: 1, done: 2};
   const all = [...trips].sort((x, y) => ord[wstat(x)] - ord[wstat(y)] || (wstat(x) === 'done' ? y.start.localeCompare(x.start) : sk(x).localeCompare(sk(y))));
-  if (!all.length) { A.innerHTML = '<p class="mu" style="text-align:center;margin:28px 0">Belum ada trip.<br>Tekan tombol <b>+</b> untuk membuat trip pertama.</p>'; return; }
+  if (!all.length && !prepReady) { A.innerHTML = '<p class="mu" style="text-align:center;margin:28px 0">Belum ada trip.<br>Tekan tombol <b>+</b> untuk membuat trip pertama.</p>'; return; }
   const m = new Map();
   all.forEach(t => packAll(t).forEach(e => { let x = m.get(e.key);
-    if (!x) { x = {key: e.key, title: e.title, cat: e.cat, trips: []}; m.set(e.key, x); }
+    if (!x) { x = {key: e.key, title: e.title, cat: e.cat, qty: e.qty, unit: e.unit, trips: []}; m.set(e.key, x); }
     if (x.cat === 'Lainnya' && e.cat !== 'Lainnya') x.cat = e.cat;
     x.trips.push({t, done: e.done}); }));
-  const ents = [...m.values()];
-  const home = all[0];
+  // barang dari database Prepare yang sudah tidak ada di trip mana pun tetap ditampilkan
+  prepCat.forEach(c => { const x = m.get(c.key);
+    if (x) { if (!x.qty && c.qty) { x.qty = c.qty; x.unit = c.unit || 'pcs'; } x.cats = [...new Set([x.cat, ...(c.cats || [])])]; }
+    else if (!delGuard.has(c.key)) m.set(c.key, {key: c.key, title: c.title, cat: c.cat || 'Lainnya', cats: [...new Set([c.cat || 'Lainnya', ...(c.cats || [])])], qty: c.qty || 0, unit: c.unit || 'pcs', trips: []}); });
+  const ents = [...m.values()]; ents.forEach(x => { if (!x.cats) x.cats = [x.cat]; });
+  const home = all[0] || null, homeT = () => home ? (freshTrip(home.id) || home) : {pack: [], itin: [], name: ''};
   // selalu urut A-Z (otomatis saat tambah, rename, atau hapus)
   ents.sort((a, b) => a.title.localeCompare(b.title, 'id', {sensitivity: 'base', numeric: true}));
   A.innerHTML = `<div class="pph"><form class="card" id="ppf"><div class="row" style="flex-wrap:wrap;margin-bottom:0"><input id="ppn" placeholder="Nama barang" required style="flex:1 1 150px"><input id="ppq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" style="flex:0 0 76px;width:76px;text-align:center"><select id="ppu" aria-label="Satuan" style="flex:0 0 76px;width:76px">${qOpts('pcs')}</select><select id="ppc" aria-label="Kategori" style="flex:1 1 110px">${catOpts(home, lastCat)}</select><input id="ppcn" placeholder="Nama kategori baru" maxlength="30" style="flex:1 1 130px"><button style="flex:0 0 84px;padding-left:8px;padding-right:8px">Tambah</button></div></form>
     <div class="sb">${ic(SRCH, 20)}<input id="ppq2" type="search" placeholder="Cari checklist barang" value="${esc(ppQ)}" autocomplete="off"></div></div>
     <div class="card" id="ppl"></div>`;
   catPick($('#ppc'), $('#ppcn'));
-  const paint = () => { const q = nk(ppQ), L = ents.filter(e => !q || nk(e.title).includes(q) || nk(e.cat).includes(q));
-    const cats = [...LCAT, ...L.map(e => e.cat)].filter((c, i, a) => a.indexOf(c) === i && L.some(e => e.cat === c));
+  const paint = () => { const q = nk(ppQ), L = ents.filter(e => !q || nk(e.title).includes(q) || (e.cats || [e.cat]).some(c => nk(c).includes(q)));
+    const cats = [...LCAT, ...L.flatMap(e => e.cats || [e.cat])].filter((c, i, a) => a.indexOf(c) === i && L.some(e => (e.cats || [e.cat]).includes(c)));
     if (!ppCat) ppCat = cats[0];
     if (!q && ppCat && !cats.includes(ppCat)) cats.push(ppCat);
     const ci = Math.max(0, cats.indexOf(ppCat)), pg = !q && cats.length > 1, show = q ? cats : [cats[ci]];
-    const row = e => `<div class="item" data-ek="${esc(e.key)}" title="Klik untuk edit, klik 2x untuk ganti nama" style="cursor:pointer"><span class="t"><span class="tt" data-k="${esc(e.key)}">${esc(e.title)}</span></span></div>`;
-    $('#ppl').innerHTML = (L.length ? show.map(c => { const g = L.filter(e => e.cat === c);
-      return `<div class="lgh lgn">${pg ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.length}</span></span>${pg ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + (g.length ? '<div class="ppg">' + g.map(row).join('') + '</div>' : '<div class="mu" style="margin:8px 0">Belum ada barang di kategori ini.</div>'); }).join('') : '<div class="mu" style="margin:8px 0">' + (ents.length ? 'Tidak ada barang yang cocok.' : 'Belum ada barang. Tambahkan lewat form di atas.') + '</div>');
+    const row = (e, c) => `<div class="item" data-ek="${esc(e.key)}" title="Klik untuk edit, klik 2x untuk ganti nama" style="cursor:pointer"><span class="t"><span class="tt" data-k="${esc(e.key)}">${esc(e.title)}</span></span></div>`;
+    $('#ppl').innerHTML = (L.length ? show.map(c => { const g = L.filter(e => (e.cats || [e.cat]).includes(c));
+      return `<div class="lgh lgn">${pg ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.length}</span></span>${pg ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + (g.length ? '<div class="ppg">' + g.map(e => row(e, c)).join('') + '</div>' : '<div class="mu" style="margin:8px 0">Belum ada barang di kategori ini.</div>'); }).join('') : '<div class="mu" style="margin:8px 0">' + (ents.length ? 'Tidak ada barang yang cocok.' : 'Belum ada barang. Tambahkan lewat form di atas.') + '</div>');
     const sc = $('#ppc'); if (!q && sc && [...sc.options].some(o => o.value === ppCat)) sc.value = ppCat;
     $('#ppl').querySelectorAll('[data-nv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.nv]; if (n) { ppCat = n; paint(); } });
     // klik 1x di mana saja pada baris barang (teks maupun area kosong): pop up edit (nama, qty, satuan, kategori) — berlaku di semua trip yang memakai barang ini
@@ -818,16 +871,18 @@ function renderPrep() {
   };
   // hapus selamanya: dari semua trip (packing list, list kegiatan, storage) dan dari rekomendasi
   const delForever = e => {
-    if (!confirm('Hapus "' + e.title + '" selamanya dari semua trip (' + e.trips.length + ' trip) dan rekomendasi? Tindakan ini tidak bisa dibatalkan.')) return false;
-    const cs = new Set([e.cat]); trips.forEach(z => packAll(z).forEach(x => { if (x.key === e.key) cs.add(x.cat); }));
+    if (!confirm('Hapus "' + e.title + '" selamanya dari Prepare' + (e.trips.length ? ', semua trip (' + e.trips.length + ' trip),' : '') + ' dan rekomendasi? Tindakan ini tidak bisa dibatalkan.')) return false;
+    const cs = new Set(e.cats || [e.cat]); trips.forEach(z => packAll(z).forEach(x => { if (x.key === e.key) cs.add(x.cat); }));
     try { const h = new Set(JSON.parse(localStorage.getItem('et-sughide')) || []); cs.forEach(c => h.add(c + '|' + e.key)); localStorage.setItem('et-sughide', JSON.stringify([...h])); } catch {}
+    guardKeys(e.key); prepDel(e.key);
     e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
       const pack = (f.pack || []).filter(p => nk(p.title) !== e.key);
       const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.filter(l => nk(l.name) !== e.key)} : i);
       const q = {...(f.pqty || {})}; delete q[e.key];
       save(f, {pack, itin, pqty: q, porder: (f.porder || []).filter(k => k !== e.key), pdone: (f.pdone || []).filter(k => k !== e.key), store: (f.store || []).filter(x => !(x.k !== 'c' && nk(x.n) === e.key))}); }); return true; };
   const renameAll = (e, nm) => { nm = nm.trim(); if (!nm || nm === e.title) return false; const nn = nk(nm);
-    if (nn !== e.key && e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn))) { alert('Barang ini sudah ada di salah satu trip.'); return false; }
+    if (nn !== e.key && (e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn)) || prepCat.some(c => c.key === nn))) { alert('Barang ini sudah ada di Prepare.'); return false; }
+    guardKeys(e.key); prepPut(nn, {title: nm, cat: e.cat, cats: e.cats || [e.cat], ...qFields(e.qty, e.unit)}); if (nn !== e.key) prepDel(e.key);
     e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
       const pack = (f.pack || []).map(p => nk(p.title) === e.key ? {...p, title: nm} : p);
       const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.map(l => nk(l.name) === e.key ? {...l, name: nm} : l)} : i);
@@ -835,14 +890,16 @@ function renderPrep() {
       save(f, {pack, itin, store: renSt(f, e.key, nm), porder: renPo(f, e.key, nn), pqty: mvQ(f.pqty, e.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); });
     return true; };
   const editEnt = e => {
-    const t0 = freshTrip(home.id) || home;
+    const t0 = homeT();
     let q0 = null; for (const z of e.trips) { const v = qv(((freshTrip(z.t.id) || z.t).pqty || {})[e.key]); if (v) { q0 = v; break; } }
-    const m = openEdit('Edit barang', `<div class="row"><input id="gn" value="${esc(e.title)}" maxlength="60" autocomplete="off" required></div><div class="row"><input id="gq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" value="${q0 ? q0.n.toLocaleString('id-ID') : ''}" style="flex:1 1 0"><select id="gu" aria-label="Satuan" style="flex:1 1 0">${qOpts(q0 ? q0.u : 'pcs')}</select></div><div class="row"><select id="gc" aria-label="Kategori">${catOpts(t0, e.cat)}</select></div><div class="row"><input id="gcn" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
-      const nm = m.querySelector('#gn').value.trim(), ct = readCat(m.querySelector('#gc'), m.querySelector('#gcn'));
-      if (!nm) return alert('Isi nama barang.'); if (!ct) return alert('Isi nama kategori baru.');
-      const nn = nk(nm);
-      if (nn !== e.key && e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn))) return alert('Barang ini sudah ada di salah satu trip.');
+    if (!q0 && e.qty) q0 = {n: e.qty, u: e.unit || 'pcs'};
+    const m = openEdit('Edit barang', `<div class="row"><input id="gn" value="${esc(e.title)}" maxlength="60" autocomplete="off" required></div><div class="row"><input id="gq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" value="${q0 ? q0.n.toLocaleString('id-ID') : ''}" style="flex:1 1 0"><select id="gu" aria-label="Satuan" style="flex:1 1 0">${qOpts(q0 ? q0.u : 'pcs')}</select></div>${catMulti(t0, e.cats || [e.cat])}`, m => {
+      const nm = m.querySelector('#gn').value.trim(), cs = readCats(m);
+      if (!nm) return alert('Isi nama barang.'); if (!cs.length) return alert('Pilih minimal satu kategori.');
+      const ct = cs.includes(e.cat) ? e.cat : cs[0], nn = nk(nm);
+      if (nn !== e.key && (e.trips.some(z => packAll(freshTrip(z.t.id) || z.t).some(q => q.key === nn)) || prepCat.some(c => c.key === nn))) return alert('Barang ini sudah ada di Prepare.');
       const qo = qRead(m.querySelector('#gq'), m.querySelector('#gu')), qch = JSON.stringify(qo) !== JSON.stringify(q0 ? {n: q0.n, u: q0.u} : null);
+      guardKeys(e.key); prepPut(nn, {title: nm, cat: ct, cats: cs, ...qFields(qo && qo.n, qo && qo.u)}); if (nn !== e.key) prepDel(e.key);
       e.trips.forEach(z => { const f = freshTrip(z.t.id) || z.t;
         const pack = (f.pack || []).map(p => nk(p.title) === e.key ? {...p, title: nm, cat: ct} : p);
         const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === e.key) ? {...i, lists: i.lists.map(l => nk(l.name) === e.key ? {...l, name: nm, cat: ct} : l)} : i);
@@ -851,7 +908,7 @@ function renderPrep() {
         save(f, {pack, itin, store: renSt(f, e.key, nm), porder: renPo(f, e.key, nn), pqty: pq, pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); });
       ppCat = ct; lastCat = ct; return true;
     });
-    if (m) { catPick(m.querySelector('#gc'), m.querySelector('#gcn')); const gn = m.querySelector('#gn'); gn.focus(); gn.select();
+    if (m) { const gn = m.querySelector('#gn'); gn.focus(); gn.select();
       m.querySelector('#ec0').insertAdjacentHTML('beforebegin', '<button type="button" id="gdel" style="background:#c0392b;border-color:#c0392b;color:#fff">Hapus</button>');
       m.querySelector('#gdel').onclick = () => { if (delForever(e)) m.remove(); }; xBtn(m); }
   };
@@ -866,22 +923,22 @@ function renderPrep() {
   $('#ppf').onsubmit = e => { e.preventDefault();
     const nm = $('#ppn').value.trim(), ct = readCat($('#ppc'), $('#ppcn'));
     if (!nm) return; if (!ct) return alert('Isi nama kategori baru.');
-    const t = freshTrip(home.id) || home;
-    if (packAll(t).some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di trip ' + t.name + '.');
+    const t = home ? homeT() : null;
+    if (t ? packAll(t).some(x => x.key === nk(nm)) : ents.some(x => x.key === nk(nm))) return alert(t ? 'Barang ini sudah ada di trip ' + t.name + '.' : 'Barang ini sudah ada di Prepare.');
     lastCat = ct; const qo = qRead($('#ppq'), $('#ppu'));
-    refocus = '#ppn'; save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); };
+    refocus = '#ppn'; prepPut(nk(nm), {title: nm, cat: ct, ...(qo ? {qty: qo.n, unit: qo.u} : {})}); if (t) save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); };
   // tombol "+ Barang" (sidebar/FAB): pop up tambah barang (nama, qty, satuan, kategori)
   prepAdd = () => {
-    const t0 = freshTrip(home.id) || home;
-    const m = openEdit('Barang baru', `<div class="row"><input id="fn" placeholder="Nama barang" maxlength="60" autocomplete="off" required></div><div class="row"><input id="fq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" style="flex:1 1 0"><select id="fu" aria-label="Satuan" style="flex:1 1 0">${qOpts('pcs')}</select></div><div class="row"><select id="fc" aria-label="Kategori">${catOpts(t0, ppCat || lastCat)}</select></div><div class="row"><input id="fcn" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
-      const nm = m.querySelector('#fn').value.trim(), ct = readCat(m.querySelector('#fc'), m.querySelector('#fcn'));
-      if (!nm) return alert('Isi nama barang.'); if (!ct) return alert('Isi nama kategori baru.');
-      const t = freshTrip(home.id) || home;
-      if (packAll(t).some(x => x.key === nk(nm))) return alert('Barang ini sudah ada di trip ' + t.name + '.');
+    const t0 = homeT();
+    const m = openEdit('Barang baru', `<div class="row"><input id="fn" placeholder="Nama barang" maxlength="60" autocomplete="off" required></div><div class="row"><input id="fq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" style="flex:1 1 0"><select id="fu" aria-label="Satuan" style="flex:1 1 0">${qOpts('pcs')}</select></div>${catMulti(t0, [ppCat || lastCat])}`, m => {
+      const nm = m.querySelector('#fn').value.trim(), cs = readCats(m), ct = cs[0];
+      if (!nm) return alert('Isi nama barang.'); if (!ct) return alert('Pilih minimal satu kategori.');
+      const t = home ? homeT() : null;
+      if (t ? packAll(t).some(x => x.key === nk(nm)) : ents.some(x => x.key === nk(nm))) return alert(t ? 'Barang ini sudah ada di trip ' + t.name + '.' : 'Barang ini sudah ada di Prepare.');
       lastCat = ct; ppCat = ct; ppQ = ''; const qo = qRead(m.querySelector('#fq'), m.querySelector('#fu'));
-      save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); return true;
+      prepPut(nk(nm), {title: nm, cat: ct, cats: cs, ...(qo ? {qty: qo.n, unit: qo.u} : {})}); if (t) save(t, {pack: [...(t.pack || []), {id: uid(), title: nm, cat: ct, done: false}], ...(qo ? {pqty: {...(t.pqty || {}), [nk(nm)]: qo}} : {})}); return true;
     });
-    if (m) { catPick(m.querySelector('#fc'), m.querySelector('#fcn')); m.querySelector('#fn').focus(); xBtn(m); }
+    if (m) { m.querySelector('#fn').focus(); xBtn(m); }
   };
 }
 
@@ -898,7 +955,7 @@ function render() {
   if (page === 'plan') return renderPlanDetail();
   return renderList();
 }
-document.querySelectorAll('#nav [data-p]').forEach(b => b.onclick = () => { page = b.dataset.p; planOpen = false; render(); window.scrollTo(0, 0); });
+document.querySelectorAll('#nav [data-p]').forEach(b => b.onclick = () => { page = b.dataset.p; planOpen = false; if (page === 'trips') listFilter = 'on'; render(); window.scrollTo(0, 0); });
 $('#fab').onclick = () => { const t = getTrip();
   if (page === 'prep' && prepAdd) prepAdd();
   else if (page === 'plan' && planOpen && t) { const n = todayISO(); addPlan(t, pf.tid === t.id && pf.day !== 'all' ? pf.day : (n >= t.start && n <= t.end ? n : t.start)); } else openNew(); };
@@ -928,7 +985,6 @@ function openNew() {
   const o = document.createElement('div'); o.className = 'ov';
   o.innerHTML = `<form class="sheet"><b>Trip baru</b>
     <div class="row" style="margin-top:8px"><input id="nn" placeholder="Nama trip (mis. Liburan Bali)" required></div>
-    <div class="row"><input id="nd" placeholder="Tujuan" required></div>
     <div id="ndr"><div class="row">${dField('ns')}${dField('ne')}</div></div>
     <div class="ck"><label><input type="checkbox" id="ntbd"><span>Tanggal belum pasti (masih perkiraan trip)</span></label></div>
     <div class="row"><input id="nb" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Budget (Rp)"></div>
@@ -947,7 +1003,7 @@ function openNew() {
       if (!start || !end) return alert('Isi tanggal dengan format dd/mm/yyyy.');
       if (end < start) return alert('Tanggal selesai harus setelah tanggal mulai.');
     }
-    const r = await addDoc(tripsCol(), {name: o.querySelector('#nn').value.trim(), dest: o.querySelector('#nd').value.trim(),
+    const r = await addDoc(tripsCol(), {name: o.querySelector('#nn').value.trim(),
       tbd, start, end, budget: rpNum(o.querySelector('#nb').value),
       itin: [], exp: [], pack: [], created: Date.now()});
     cur = r.id; page = 'plan'; planOpen = true; o.remove(); render();
@@ -972,7 +1028,7 @@ function openRecap(t, k) {
   };
   const sec = key => { const [h, body] = SEC[key](); return `<h4 class="rh" data-k="${key}">${h}</h4>${body}`; };
   o.innerHTML = `<div class="sheet rc"><div><h3 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:calc(17px*var(--fs,1))">${esc(t.name)}</h3>
-    <div class="mu" style="margin-top:2px">${esc(t.dest)} · ${trg(t)}</div></div>
+    <div class="mu" style="margin-top:2px">${trg(t)}</div></div>
     <div class="rb">${k ? sec(k) : ['plan', 'cost', 'pack'].map(sec).join('')}</div>
     <div class="row" style="margin:12px 0 0">${k ? '<button type="button" class="ghost" id="rk">Kelola</button>' : ''}<button type="button" id="rc">Tutup</button></div></div>`;
   document.body.appendChild(o);
@@ -990,33 +1046,34 @@ function openRecap(t, k) {
   if (k) o.querySelector('#rk').onclick = () => { o.remove(); cur = t.id; planOpen = true; page = 'plan'; render(); k === 'pack' ? $('#pk')?.scrollIntoView() : k === 'cost' ? $('#bd')?.scrollIntoView() : window.scrollTo(0, 0); };
 }
 
-let listFilter = null; // filter daftar trip dari kotak statistik: 'up' | 'on' | 'done' | null (semua)
+const PIN = '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>';
+let listFilter = 'on'; // filter daftar trip dari kotak statistik: 'up' | 'on' | 'done' | 'all' | null (semua); bawaan: trip berlangsung (minggu ini)
 function renderList() {
-  const c = {on: 0, up: 0, done: 0}; trips.forEach(t => c[wstat(t)]++);
-  const ord = {on: 0, up: 1, done: 2}, lbl = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai'};
-  if (listFilter && !c[listFilter]) listFilter = null;
-  const list = [...trips].filter(t => !listFilter || wstat(t) === listFilter).sort((a, b) => ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : sk(a).localeCompare(sk(b))));
+  const c = {on: 0, up: 0, done: 0}; trips.forEach(t => c[wstat(t)]++); c.all = trips.length;
+  const ord = {on: 0, up: 1, done: 2}, lbl = {on: 'Berlangsung', up: 'Akan datang', done: 'Selesai', all: 'Semua trip'};
+  const list = [...trips].filter(t => !listFilter || listFilter === 'all' || wstat(t) === listFilter).sort((a, b) => (+!!b.pin) - (+!!a.pin) || ord[wstat(a)] - ord[wstat(b)] || (wstat(a) === 'done' ? b.start.localeCompare(a.start) : sk(a).localeCompare(sk(b))));
   const card = t => {
     const s = stat(t), w = wstat(t), n = todayISO(), days = dayDiff(t.end, t.start) + 1, tot = sum(t), pct = t.budget ? Math.min(100, tot / t.budget * 100) : 0;
     const cd = t.tbd ? '' : s === 'up' ? 'H-' + dayDiff(t.start, n) : s === 'on' ? 'Hari ke-' + (dayDiff(n, t.start) + 1) : '';
     return `<div class="card tc" data-open="${t.id}">
-      <div class="tch"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab" data-ex aria-label="Rekap">${ic(P.ex, 20)}</button></div>
-      <div class="chips"><span class="chip on">${esc(t.dest)}</span><span class="chip">${trg(t)}</span></div>
+      <div class="tch"><span class="ib">${ic(P.pin, 20)}</span><h3>${esc(t.name)}</h3><button class="ab pnb ${t.pin ? 'on' : ''}" data-pin aria-pressed="${!!t.pin}" aria-label="${t.pin ? 'Lepas pin' : 'Pin trip'}" title="${t.pin ? 'Lepas pin' : 'Pin di atas'}">${ic(PIN, 20)}</button><button class="ab" data-ex aria-label="Rekap">${ic(P.ex, 20)}</button></div>
+      <div class="chips"><span class="chip">${trg(t)}</span></div>
       <div class="chips"><span class="chip on">${lbl[w]}</span>${t.tbd ? '' : `<span class="chip">${days} hari</span>`}${cd ? `<span class="chip">${cd}</span>` : ''}</div>
       <div class="mu">Biaya ${rp(tot)} / ${rp(t.budget)}</div><div class="bar"><i class="${t.budget && tot > t.budget ? 'over' : ''}" style="width:${pct}%"></i></div>
       <div class="acts"><button class="ab" data-go="plan" aria-label="Rencana">${ic(P.cal)}</button><button class="ab" data-go="cost" aria-label="Biaya">${ic(P.wal)}</button><button class="ab" data-go="pack" aria-label="Packing">${ic(P.chk)}</button><button class="ab" data-dup aria-label="Duplikat perjalanan" title="Duplikat">${ic(COPY)}</button><span class="sp"></span><button class="ab" data-rm aria-label="Hapus" style="color:var(--rd)">${ic(P.tr)}</button></div></div>`;
   };
   A.innerHTML = `<div class="hero">
-    <div class="tiles">${[['on', 'berlangsung'], ['up', 'akan datang'], ['done', 'selesai']].map(([k, l]) => `<div class="tile tf ${listFilter === k ? 'act' : ''}" role="button" tabindex="0" data-f="${k}" aria-pressed="${listFilter === k}" aria-label="Tampilkan trip ${l}"><b>${c[k]}</b><span>${l}</span></div>`).join('')}</div></div>
-    <h2 class="sec">Perjalanan kamu${listFilter ? ' · ' + lbl[listFilter] : ''}</h2>` + (list.length ? '<div class="cgrid">' + list.map(card).join('') + '</div>' : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
+    <div class="tiles">${[['on', 'berlangsung'], ['up', 'akan datang'], ['done', 'selesai'], ['all', 'semua trip']].map(([k, l]) => `<div class="tile tf ${listFilter === k ? 'act' : ''}" role="button" tabindex="0" data-f="${k}" aria-pressed="${listFilter === k}" aria-label="Tampilkan ${k === 'all' ? '' : 'trip '}${l}"><b>${c[k]}</b><span>${l}</span></div>`).join('')}</div></div>
+    <h2 class="sec">Perjalanan kamu${listFilter && listFilter !== 'all' ? ' · ' + lbl[listFilter] : ''}</h2>` + (list.length ? '<div class="cgrid">' + list.map(card).join('') + '</div>' : trips.length ? '<p class="mu" style="text-align:center;margin-top:40px">Tidak ada trip ' + (lbl[listFilter] || '').toLowerCase() + '.</p>' : '<p class="mu" style="text-align:center">Belum ada trip. Tekan tombol <b>+</b> untuk membuat yang pertama!</p>');
   A.querySelectorAll('[data-f]').forEach(b => { const go = () => { listFilter = listFilter === b.dataset.f ? null : b.dataset.f; renderList(); };
     b.onclick = go; b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
   A.querySelectorAll('.tc').forEach(el => { const id = el.dataset.open;
     el.onclick = () => { cur = id; page = 'plan'; planOpen = true; render(); window.scrollTo(0, 0); };
     el.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id), b.dataset.go); });
+    el.querySelector('[data-pin]').onclick = e => { e.stopPropagation(); const x = trips.find(z => z.id === id); if (x) save(x, {pin: !x.pin}); };
     el.querySelector('[data-ex]').onclick = e => { e.stopPropagation(); openRecap(trips.find(x => x.id === id)); };
     el.querySelector('[data-dup]').onclick = e => { e.stopPropagation(); duplicateTrip(trips.find(x => x.id === id)); };
-    el.querySelector('[data-rm]').onclick = async e => { e.stopPropagation(); if (confirm('Hapus trip ini beserta isinya?')) { if (cur === id) cur = null; await deleteDoc(tripRef(id)); } };
+    el.querySelector('[data-rm]').onclick = async e => { e.stopPropagation(); if (confirm(delMsg())) { await prepKeepTrip(id); if (cur === id) cur = null; await deleteDoc(tripRef(id)); } };
   });
 }
 // Biaya yang diisi pada kegiatan ikut dihitung sebagai realisasi trip
@@ -1055,7 +1112,7 @@ const fmtMin = m => m < 60 ? m + ' mnt' : Math.floor(m / 60) + ' j' + (m % 60 ? 
 const durOf = (t, i) => { if (!i.time) return ''; const a = t2m(i.time); let b = null;
   for (const x of t.itin) if (x.date === i.date && x.time && x.id !== i.id) { const m = t2m(x.time); if (m > a && (b === null || m < b)) b = m; }
   return b === null ? '' : fmtMin(b - a); };
-const mapUrl = (t, i) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(i.title + ' ' + t.dest);
+const mapUrl = (t, i) => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(i.title);
 
 // ---- List per kegiatan (Elektronik, Baju, Barang, Makanan, Lainnya, atau kategori baru) — otomatis tersambung ke Packing List ----
 const LCAT = ['Elektronik', 'Baju', 'Barang', 'Makanan', 'Lainnya'];
@@ -1074,6 +1131,8 @@ const qv = v => v && typeof v === 'object' ? v : (v > 0 ? {n: +v, u: 'pcs'} : nu
 const qRead = (i, u) => { const n = +String(i.value).replace(/\D/g, '').slice(0, 15) || 0; return n > 0 ? {n, u: QU.includes(u.value) ? u.value : 'pcs'} : null; };
 const qOpts = cur => QU.map(x => `<option ${x === cur ? 'selected' : ''}>${x}</option>`).join('');
 const qTxt = (n, u) => u === 'Rp' ? 'Rp ' + n.toLocaleString('id-ID') : n.toLocaleString('id-ID') + ' ' + u;
+// teks jumlah sebuah barang di kegiatan: "Rp 600.000" / "2 pcs"; barang akumulasi: "1 pcs (total 3 pcs)"
+const lqTxt = (l, e) => { e = e || {}; if (l.acc) { const q = qv(l.q) || {n: 1, u: e.unit || 'pcs'}; return qTxt(q.n, q.u); } return e.qty ? qTxt(e.qty, e.unit) : ''; };
 function packAll(t) {
   const m = new Map(), dn = new Set(t.pdone || []);
   const get = (title, cat) => { const k = nk(title); let e = m.get(k);
@@ -1082,9 +1141,11 @@ function packAll(t) {
   (t.pack || []).forEach(p => { if (nk(p.title)) get(p.title, p.cat).manual.push(p); });
   [...(t.itin || [])].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '99:99').localeCompare(b.time || '99:99'))
     .forEach(i => (i.lists || []).forEach(l => { if (!nk(l.name)) return; const e = get(l.name, l.cat);
-      if (!e.uses.some(u => u.id === i.id)) e.uses.push({id: i.id, title: i.title, date: i.date}); }));
+      if (!e.uses.some(u => u.id === i.id)) e.uses.push({id: i.id, title: i.title, date: i.date});
+      if (l.acc) { const q = qv(l.q); (e.accs = e.accs || []).push({n: q ? q.n : 1, u: q ? q.u : null}); } })); // barang "akumulasi": tiap kegiatan menambah jumlahnya
   const ord = new Map((t.porder || []).map((k, i) => [k, i]));
-  return [...m.values()].map((e, i) => ({...e, cat: e.cat || 'Lainnya', done: e.manual.length ? e.manual.some(p => p.done) : dn.has(e.key), qty: (qv((t.pqty || {})[e.key]) || {}).n || 0, unit: (qv((t.pqty || {})[e.key]) || {}).u || 'pcs', _i: i}))
+  return [...m.values()].map((e, i) => { const ac = e.accs && e.accs.length ? {n: e.accs.reduce((a, x) => a + x.n, 0), u: (e.accs.find(x => x.u) || {}).u || 'pcs'} : null;
+    return {...e, cat: e.cat || 'Lainnya', done: e.manual.length ? e.manual.some(p => p.done) : dn.has(e.key), qty: ac ? ac.n : (qv((t.pqty || {})[e.key]) || {}).n || 0, unit: ac ? ac.u : (qv((t.pqty || {})[e.key]) || {}).u || 'pcs', acc: !!ac, _i: i}; })
     .sort((a, b) => (ord.has(a.key) ? ord.get(a.key) : 1e6) - (ord.has(b.key) ? ord.get(b.key) : 1e6) || a._i - b._i);
 }
 // pilih kegiatan mana saja yang memakai sebuah barang (dipakai di dialog Edit barang / Ubah kategori)
@@ -1112,7 +1173,7 @@ function catOpts(t, cur) {
   const all = [...LCAT]; // kategori bawaan + kategori dari semua trip (juga yang pernah ditambahkan sebelumnya) ikut muncul di trip baru
   let sv = []; try { const a = JSON.parse(localStorage.getItem('et-pcats')); if (Array.isArray(a)) sv = a.map(String); } catch {}
   const add = c => { if (c && c !== '__new' && !all.includes(c)) all.push(c); };
-  sv.forEach(add); (trips || []).forEach(x => packAll(x).forEach(e => add(e.cat))); packAll(t).forEach(e => add(e.cat)); add(cur);
+  sv.forEach(add); (trips || []).forEach(x => packAll(x).forEach(e => add(e.cat))); prepCat.forEach(c => { add(c.cat); (c.cats || []).forEach(add); }); packAll(t).forEach(e => add(e.cat)); add(cur);
   try { localStorage.setItem('et-pcats', JSON.stringify(all.filter(c => !LCAT.includes(c)))); } catch {}
   return all.map(c => `<option value="${esc(c)}" ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('') + '<option value="__new">＋ Kategori baru…</option>';
 }
@@ -1121,6 +1182,16 @@ function catPick(sel, inp) { // tampilkan kolom nama kategori baru bila dipilih
   sel.onchange = f; inp.style.display = 'none'; }
 function readCat(sel, inp) { const c = sel.value === '__new' ? inp.value.trim() : sel.value; return c || null; }
 
+// ---- Multi-kategori: satu barang bisa masuk beberapa kategori (checkbox di dialog Tambah/Edit barang Prepare) ----
+function catNames(t, cur) {
+  const all = [...LCAT]; let sv = []; try { const a = JSON.parse(localStorage.getItem('et-pcats')); if (Array.isArray(a)) sv = a.map(String); } catch {}
+  const add = c => { if (c && c !== '__new' && !all.includes(c)) all.push(c); };
+  sv.forEach(add); (trips || []).forEach(x => packAll(x).forEach(e => add(e.cat))); prepCat.forEach(c => { add(c.cat); (c.cats || []).forEach(add); }); packAll(t).forEach(e => add(e.cat)); (cur || []).forEach(add);
+  return all;
+}
+const catMulti = (t, sel) => `<div class="mu" style="margin:10px 0 4px"><b>Kategori</b> (boleh lebih dari satu)</div><div class="ck" style="max-height:170px;overflow-y:auto;margin-bottom:8px">${catNames(t, sel).map(c => `<label><input type="checkbox" data-mc="${esc(c)}" ${sel.includes(c) ? 'checked' : ''}><span>${esc(c)}</span></label>`).join('')}</div><div class="row"><input id="mcn" placeholder="Kategori baru (opsional)" maxlength="30" autocomplete="off"></div>`;
+const readCats = m => { const a = [...m.querySelectorAll('[data-mc]:checked')].map(b => b.dataset.mc), n = (m.querySelector('#mcn').value || '').trim(); if (n && !a.includes(n)) a.push(n); return a; };
+
 // barang yang dihapus dari list sebuah kegiatan tetap tersimpan di Packing List (jika tidak dipakai di tempat lain)
 function keepOrphans(f, oldLists, itin, pack, renOld = []) {
   const now = new Set(packAll({...f, itin, pack}).map(e => e.key)), pd = new Set(f.pdone || []), add = [];
@@ -1128,13 +1199,13 @@ function keepOrphans(f, oldLists, itin, pack, renOld = []) {
     add.push({id: uid(), title: String(l.name).trim(), cat: l.cat || 'Lainnya', done: pd.has(k)}); });
   return add.length ? [...pack, ...add] : pack;
 }
-function setLists(tid, aid, fn, mig) {
+function setLists(tid, aid, fn, mig, qp) {
   const t = freshTrip(tid); if (!t) return;
   const cur = t.itin.find(i => i.id === aid), itin = t.itin.map(i => i.id === aid ? {...i, lists: fn([...(i.lists || [])])} : i);
   const pack = keepOrphans(t, cur ? cur.lists : [], itin, t.pack || [], mig ? [mig[0]] : []);
   const ks = new Set(packAll({...t, itin, pack}).map(e => e.key)), pd = new Set(t.pdone || []);
   if (mig && pd.has(mig[0]) && !ks.has(mig[0])) pd.add(mig[1]);
-  save(t, {itin, pack, ...(mig ? {store: (() => { const l = (itin.find(i => i.id === aid).lists || []).find(l => nk(l.name) === mig[1]); return l ? renSt(t, mig[0], l.name) : (t.store || []); })(), porder: renPo(t, mig[0], mig[1]), pqty: mvQ(t.pqty, mig[0], mig[1])} : {}), pdone: [...pd].filter(k => ks.has(k))});
+  save(t, {itin, pack, ...(mig ? {store: (() => { const l = (itin.find(i => i.id === aid).lists || []).find(l => nk(l.name) === mig[1]); return l ? renSt(t, mig[0], l.name) : (t.store || []); })(), porder: renPo(t, mig[0], mig[1])} : {}), ...((mig || qp) ? {pqty: (() => { const q0 = mig ? mvQ(t.pqty, mig[0], mig[1]) : (t.pqty || {}); return qp ? setQ(q0, qp[0], qp[0], qp[1]) : q0; })()} : {}), pdone: [...pd].filter(k => ks.has(k))});
 }
 function paintLists(box, tid, aid) {
   const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return false;
@@ -1146,7 +1217,7 @@ function paintLists(box, tid, aid) {
   const body = box.querySelector('.lbody');
   body.innerHTML = ls.length ? [cats[ci]].map(c => { const g = ls.filter(l => l.cat === c), isD = l => (ents.get(nk(l.name)) || {}).done, vis = showChecked ? g : g.filter(l => !isD(l)), nd = g.filter(isD).length;
     return `<div class="lgh lgn">${cats.length > 1 ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.filter(l => (ents.get(nk(l.name)) || {}).done).length}/${g.length}</span></span>${cats.length > 1 ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + vis.map(l => { const e = ents.get(nk(l.name)) || {}, other = (e.uses || []).length - 1;
-      return `<div class="item"><input type="checkbox" data-lc="${l.id}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(l.name)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${esc(l.name)}</span>${other > 0 ? `<span class="mu">Juga dipakai di ${other} kegiatan lain</span>` : ''}</span><button type="button" class="del ed" data-le="${l.id}" aria-label="Edit">${PEN}</button><button type="button" class="del" data-lx="${l.id}" aria-label="Hapus">✕</button></div>`; }).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : '') + (nd ? `<div class="mu" style="margin:8px 0 2px"><a href="#" data-sh>${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${nd} yang sudah dicentang</a></div>` : ''); }).join('')
+      return `<div class="item"><input type="checkbox" data-lc="${l.id}" ${e.done ? 'checked' : ''} aria-label="Centang ${esc(l.name)}"><span class="t"><span class="tt ${e.done ? 'done' : ''}">${esc(l.name)}${l.acc ? `<span style="color:var(--mu);font-weight:400"> · ${esc(qTxt((qv(l.q) || {n: 1}).n, (qv(l.q) || {}).u || e.unit || 'pcs'))}</span>` : e.qty ? `<span style="color:var(--mu);font-weight:400"> · ${esc(qTxt(e.qty, e.unit))}</span>` : ''}</span>${other > 0 ? `<span class="mu">Juga dipakai di ${other} kegiatan lain</span>` : ''}</span><button type="button" class="del ed" data-le="${l.id}" aria-label="Edit">${PEN}</button><button type="button" class="del" data-lx="${l.id}" aria-label="Hapus">✕</button></div>`; }).join('') + (!vis.length && nd ? '<div class="mu" style="margin:8px 0">Semua barang di kategori ini sudah siap ✓</div>' : '') + (nd ? `<div class="mu" style="margin:8px 0 2px"><a href="#" data-sh>${showChecked ? 'Sembunyikan' : 'Tampilkan'} ${nd} yang sudah dicentang</a></div>` : ''); }).join('')
     : '<div class="mu" style="margin:4px 0">Belum ada list. Tambahkan elektronik, baju, barang, makanan, atau kategori lain.</div>';
   box.querySelector('.lcount').textContent = ls.length ? dn + '/' + ls.length + ' siap' : '';
   const sel = box.querySelector('.lcat'), cur = sel.value && sel.value !== '__new' ? sel.value : lastCat;
@@ -1156,41 +1227,43 @@ function paintLists(box, tid, aid) {
   body.querySelectorAll('[data-lc]').forEach(c => c.onchange = () => { const l = ls.find(x => x.id === c.dataset.lc); if (l) togglePack(tid, nk(l.name), c.checked); });
   body.querySelectorAll('[data-lx]').forEach(b => b.onclick = () => setLists(tid, aid, a => a.filter(x => x.id !== b.dataset.lx)));
   body.querySelectorAll('[data-le]').forEach(b => b.onclick = () => { const l = ls.find(x => x.id === b.dataset.le); if (!l) return;
-    const m = openEdit('Edit list', `<div class="row"><input id="eln" value="${esc(l.name)}" placeholder="Nama barang" required></div><div class="row"><select id="elc">${catOpts(freshTrip(tid) || t, l.cat)}</select></div><div class="row"><input id="elk" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
+    const m = openEdit('Edit list', `<div class="row"><input id="eln" value="${esc(l.name)}" placeholder="Nama barang" required></div>${qRow('eq', l.acc ? qv(l.q) : qv(((freshTrip(tid) || t).pqty || {})[nk(l.name)]), !!l.acc)}<div class="row"><select id="elc">${catOpts(freshTrip(tid) || t, l.cat)}</select></div><div class="row"><input id="elk" placeholder="Nama kategori baru" maxlength="30"></div>`, m => {
       const nm = m.querySelector('#eln').value.trim(), ct = readCat(m.querySelector('#elc'), m.querySelector('#elk'));
       if (!nm || !ct) return alert('Isi nama barang dan kategori.');
       if (ls.some(x => x.id !== l.id && nk(x.name) === nk(nm))) return alert('Barang ini sudah ada di list kegiatan ini.');
-      setLists(tid, aid, a => a.map(x => x.id === l.id ? {...x, name: nm, cat: ct} : x), [nk(l.name), nk(nm)]); return true; });
+      { const eq = qRead(m.querySelector('.eqq'), m.querySelector('.equ')), ea = m.querySelector('.eqa').checked;
+        setLists(tid, aid, a => a.map(x => { if (x.id !== l.id) return x; const {acc: _a, q: _q, ...r} = x; return {...r, name: nm, cat: ct, ...(ea ? {acc: true, ...(eq ? {q: eq} : {})} : {})}; }), [nk(l.name), nk(nm)], ea ? null : [nk(nm), eq]); } prepRename(nk(l.name), nm); return true; });
     if (m) catPick(m.querySelector('#elc'), m.querySelector('#elk')); });
   return true;
 }
 function listBox(tid, aid) {
   const box = document.createElement('div'); box.className = 'lsx';
   box.innerHTML = `<div style="display:flex;align-items:baseline;gap:8px"><h4 style="flex:1">List persiapan</h4><span class="mu lcount"></span></div>
-    <div class="ladd"><div class="row lar"><div class="sgw"><input class="lname" placeholder="Nama barang" maxlength="60" autocomplete="off"></div><select class="lcat" aria-label="Kategori"></select><button type="button" class="lbtn" aria-label="Tambah barang">+</button></div>
+    <div class="ladd"><div class="row lar" style="flex-wrap:nowrap;align-items:center;gap:4px"><div class="sgw" style="flex:1 1 0;min-width:0"><input class="lname" placeholder="Nama barang" maxlength="60" autocomplete="off" style="width:100%;padding-left:8px;padding-right:6px"></div><select class="lcat" aria-label="Kategori" style="flex:0 0 78px;min-width:0;padding-left:6px;padding-right:0"></select><input class="lqn qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" style="flex:0 0 40px;width:40px;min-width:0;padding-left:2px;padding-right:2px;text-align:center"><select class="lqs" aria-label="Satuan" style="flex:0 0 54px;width:54px;min-width:0;padding-left:4px;padding-right:0">${qOpts('pcs')}</select><label class="lac" title="Akumulasi — centang: jumlah ditambahkan tiap kegiatan (mis. celana dalam di 3 kegiatan = 3). Tidak dicentang: satu barang dipakai bersama." style="gap:3px;font-size:calc(11px*var(--fs,1))"><input type="checkbox" class="lqa" aria-label="Akumulasi" style="width:18px;height:18px"></label><button type="button" class="lbtn" aria-label="Tambah barang" title="Tambah barang" style="flex:0 0 34px;width:34px;height:36px">+</button></div>
     <div class="row"><input class="lnew" placeholder="Nama kategori baru" maxlength="30"></div></div>
     <div class="lbody"></div>`;
-  const sel = box.querySelector('.lcat'), nw = box.querySelector('.lnew'), inp = box.querySelector('.lname');
+  const sel = box.querySelector('.lcat'), nw = box.querySelector('.lnew'), inp = box.querySelector('.lname'), qi = box.querySelector('.lqn'), qu = box.querySelector('.lqs'), qa = box.querySelector('.lqa');
   sel.innerHTML = catOpts(freshTrip(tid), lastCat); box.dataset.cats = sel.innerHTML; catPick(sel, nw);
   // rekomendasi: barang yang sudah pernah diinput di trip ini (packing list + kegiatan lain)
   const sg = document.createElement('div'); sg.className = 'sg'; sg.style.display = 'none'; inp.parentNode.appendChild(sg);
   const hide = () => { sg.style.display = 'none'; };
   const showSg = () => { const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return hide();
     const have = new Set((it.lists || []).map(l => nk(l.name))), q = nk(inp.value);
-    const L = packAll(t).filter(e => !have.has(e.key) && (!q || e.key.includes(q))).sort((a, b) => (+b.key.startsWith(q)) - (+a.key.startsWith(q)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
+    const L = withPrep([...packAll(t)]).filter(e => !have.has(e.key) && (!q || e.key.includes(q))).sort((a, b) => (+b.key.startsWith(q)) - (+a.key.startsWith(q)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
     if (!L.length) return hide();
-    sg.innerHTML = `<div class="sgh">Sudah ada di trip ini — pilih agar tidak dobel</div>` + L.map(e => `<button type="button" class="sgo" data-k="${esc(e.key)}"><span>${esc(e.title)}</span><span class="mu">${esc(e.cat)}</span></button>`).join('');
+    sg.innerHTML = `<div class="sgh">Dari Prepare &amp; trip ini — pilih agar tidak dobel</div>` + L.map(e => `<button type="button" class="sgo" data-k="${esc(e.key)}"><span>${esc(e.title)}</span><span class="mu">${esc(e.cat)}</span></button>`).join('');
     sg.style.display = '';
     sg.querySelectorAll('.sgo').forEach(b => { b.onmousedown = ev => ev.preventDefault(); b.onclick = () => { const e = L.find(x => x.key === b.dataset.k); if (!e) return;
       inp.value = e.title; if (![...sel.options].some(o => o.value === e.cat)) sel.insertAdjacentHTML('afterbegin', `<option value="${esc(e.cat)}">${esc(e.cat)}</option>`);
-      sel.value = e.cat; catPick(sel, nw); hide(); inp.focus(); }; }); };
+      sel.value = e.cat; qa.checked = !!e.acc; if (e.qty && !e.acc) { qi.value = e.qty.toLocaleString('id-ID'); qu.value = e.unit || 'pcs'; } else { qi.value = ''; qu.value = e.acc ? (e.unit || 'pcs') : 'pcs'; }
+      catPick(sel, nw); hide(); inp.focus(); }; }); };
   inp.oninput = showSg; inp.onfocus = showSg; inp.onblur = () => setTimeout(hide, 120);
   const add = () => { hide(); const nm = inp.value.trim(), ct = readCat(sel, nw);
     if (!nm) return inp.focus(); if (!ct) return alert('Isi nama kategori baru.');
     const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return;
     if ((it.lists || []).some(l => nk(l.name) === nk(nm))) return alert('Barang ini sudah ada di list kegiatan ini.');
-    lastCat = ct; box._cat = ct; setLists(tid, aid, a => [...a, {id: uid(), cat: ct, name: nm}]);
-    inp.value = ''; nw.value = ''; sel.value = ct; if (![...sel.options].some(o => o.value === ct)) { sel.insertAdjacentHTML('afterbegin', `<option value="${esc(ct)}">${esc(ct)}</option>`); sel.value = ct; }
+    lastCat = ct; box._cat = ct; const qq = qRead(qi, qu), ac = qa.checked; setLists(tid, aid, a => [...a, {id: uid(), cat: ct, name: nm, ...(ac ? {acc: true, ...(qq ? {q: qq} : {})} : {})}], null, !ac && qq ? [nk(nm), qq] : null);
+    inp.value = ''; qi.value = ''; qu.value = 'pcs'; qa.checked = false; nw.value = ''; sel.value = ct; if (![...sel.options].some(o => o.value === ct)) { sel.insertAdjacentHTML('afterbegin', `<option value="${esc(ct)}">${esc(ct)}</option>`); sel.value = ct; }
     catPick(sel, nw); inp.focus(); hide(); };
   box.querySelector('.lbtn').onclick = add;
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
@@ -1199,13 +1272,16 @@ function listBox(tid, aid) {
 
 const PLUSB = (id, label) => `<button type="button" class="ghost" id="${id}" aria-label="${label}" title="${label}" style="flex:0 0 36px;width:36px;padding:6px 0;font-size:20px;line-height:1">+</button>`;
 const costRow = (c = {}) => `<div class="row cstr" data-id="${esc(c.id || '')}"><input class="cnm" placeholder="Nama biaya" maxlength="60" value="${esc(c.name)}"><input class="rpi cam" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px" value="${+c.amt > 0 ? rpFmt(c.amt) : ''}"><button type="button" class="del" data-crm aria-label="Hapus biaya" style="flex:0 0 auto">✕</button></div>`;
-const listRow = (t, l = {}) => `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}"><select class="lct" aria-label="Kategori" style="flex:0 0 112px">${l.cat ? '' : '<option value="" selected>Kategori</option>'}${catOpts(t, l.cat)}</select><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto">✕</button></div><div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`;
+const accBox = (cls, on) => `<label class="lac" title="Centang: jumlah ditambahkan tiap kegiatan (mis. celana dalam di 3 kegiatan = 3). Tidak dicentang: satu barang dipakai bersama."><input type="checkbox" class="${cls}a" ${on ? 'checked' : ''}><span>Akumulasi</span></label>`;
+const qRow = (cls, q, acc) => `<div class="row"><input class="${cls}q qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" aria-label="Jumlah (opsional)" value="${q ? q.n.toLocaleString('id-ID') : ''}" style="flex:1 1 0;min-width:0"><select class="${cls}u" aria-label="Satuan" style="flex:${acc === undefined ? '1 1 0' : '0 0 80px'};min-width:0">${qOpts(q ? q.u : 'pcs')}</select>${acc === undefined ? '' : accBox(cls, acc)}</div>`;
+const listRow = (t, l = {}) => `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}"><select class="lct" aria-label="Kategori" style="flex:0 0 112px">${l.cat ? '' : '<option value="" selected>Kategori</option>'}${catOpts(t, l.cat)}</select><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto">✕</button></div>${qRow('ln', l.acc ? qv(l.q) : (l.q !== undefined ? l.q : qv(((t && t.pqty) || {})[nk(l.name || '')])), !!l.acc)}<div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`;
 const actBody = (t, it = {}) => `<div class="row">${t.tbd ? dayField('ad', it.date) : dField('ad', it.date || '', '', t.end)}${tField('ah', it.time || '')}</div>
   <div class="row"><input id="an" placeholder="Kegiatan / tempat" required value="${esc(it.title)}" style="flex:1 1 0"><select id="ac" style="flex:0 0 112px">${ACAT.map(c => `<option ${c === acat(it) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ab" id="ack" aria-label="Kelola kategori kegiatan" title="Kelola kategori" style="flex:0 0 44px;color:var(--g);justify-content:center">${PEN}</button></div>
-  <div class="row"><input id="cnn" placeholder="Nama biaya" maxlength="60" autocomplete="off"><input id="cna" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px">${PLUSB('cnb', 'Tambah biaya')}</div>
-  <div id="acs">${costsOf(it).map(costRow).join('')}</div>
+  <div class="lsx" style="margin:8px 0 6px"><h4>Biaya</h4>
+  <div class="row" style="margin-top:6px"><input id="cnn" placeholder="Nama biaya" maxlength="60" autocomplete="off"><input id="cna" class="rpi" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px">${PLUSB('cnb', 'Tambah biaya')}</div>
+  <div id="acs">${costsOf(it).map(costRow).join('')}</div></div>
   <div class="lsx" style="margin:8px 0 6px"><h4>List persiapan</h4>
-  <div class="lad"><div class="row"><input id="lnn" placeholder="Nama barang" maxlength="60" autocomplete="off"><select id="lnc2" aria-label="Kategori" style="flex:0 0 112px"><option value="" selected>Kategori</option>${catOpts(t)}</select>${PLUSB('lnb', 'Tambah barang')}</div><div class="row"><input id="lnk" placeholder="Nama kategori baru" maxlength="30"></div></div>
+  <div class="lad"><div class="row" style="flex-wrap:nowrap;align-items:center;gap:4px"><input id="lnn" placeholder="Nama barang" maxlength="60" autocomplete="off" style="flex:1 1 0;min-width:0;padding-left:8px;padding-right:6px"><select id="lnc2" aria-label="Kategori" style="flex:0 0 78px;min-width:0;padding-left:6px;padding-right:0"><option value="" selected>Kategori</option>${catOpts(t)}</select><input id="lnq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" style="flex:0 0 40px;width:40px;min-width:0;padding-left:2px;padding-right:2px;text-align:center"><select id="lnu" aria-label="Satuan" style="flex:0 0 54px;width:54px;min-width:0;padding-left:4px;padding-right:0">${qOpts('pcs')}</select><label class="lac" title="Akumulasi — centang: jumlah ditambahkan tiap kegiatan (mis. celana dalam di 3 kegiatan = 3). Tidak dicentang: satu barang dipakai bersama." style="gap:3px;font-size:calc(11px*var(--fs,1))"><input type="checkbox" id="lna" aria-label="Akumulasi" style="width:18px;height:18px"></label><button type="button" class="ghost" id="lnb" aria-label="Tambah barang" title="Tambah barang" style="flex:0 0 34px;width:34px;height:36px;padding:0;font-size:20px;line-height:1">+</button></div><div class="row"><input id="lnk" placeholder="Nama kategori baru" maxlength="30"></div></div>
   <div id="als">${(it.lists || []).map(l => listRow(t, l)).join('')}</div></div>
   <div class="row"><textarea id="ano" rows="3" placeholder="Catatan (opsional)">${esc(it.note)}</textarea></div>`;
 function readAct(t, m) {
@@ -1215,17 +1291,18 @@ function readAct(t, m) {
   if (!t.tbd && dd > t.end) return alert('Tanggal kegiatan tidak boleh setelah tanggal selesai trip (' + fd(t.end) + ').');
   if (tt === null) return alert('Jam tidak valid. Gunakan format 24 jam, mis. 07:30.');
   const costs = [...m.querySelectorAll('.cstr')].map(r => ({id: r.dataset.id || uid(), name: r.querySelector('.cnm').value.trim(), amt: rpNum(r.querySelector('.cam').value)})).filter(c => c.amt > 0);
-  const lists = [], ren = [], seen = new Set();
+  const lists = [], ren = [], qs = [], seen = new Set();
   for (const r of m.querySelectorAll('.lrw')) {
     const nm = r.querySelector('.lnm').value.trim(); if (!nm) continue;
     let ct = readCat(r.querySelector('.lct'), r.querySelector('.lnc'));
     if (!ct && r.querySelector('.lct').value === '') ct = ((packAll(freshTrip(t.id) || t).find(e => e.key === nk(nm))) || {}).cat || 'Lainnya'; // kategori dikosongkan: ikut barang yang sama bila ada, jika tidak 'Lainnya'
     if (!ct) return alert('Isi nama kategori baru untuk barang "' + nm + '".');
     if (seen.has(nk(nm))) return alert('Barang "' + nm + '" muncul dua kali di list kegiatan ini.');
-    seen.add(nk(nm)); lists.push({id: r.dataset.id || uid(), cat: ct, name: nm});
+    seen.add(nk(nm)); const rq = qRead(r.querySelector('.lnq'), r.querySelector('.lnu')), ra = r.querySelector('.lna').checked;
+    lists.push({id: r.dataset.id || uid(), cat: ct, name: nm, ...(ra ? {acc: true, ...(rq ? {q: rq} : {})} : {})}); if (!ra) qs.push([nk(nm), rq]);
     if (r.dataset.on && nk(r.dataset.on) !== nk(nm)) ren.push([nk(r.dataset.on), nk(nm)]);
   }
-  return {date: dd, time: tt, title: m.querySelector('#an').value.trim(), cat: m.querySelector('#ac').value, note: m.querySelector('#ano').value.trim(), costs, lists, _ren: ren};
+  return {date: dd, time: tt, title: m.querySelector('#an').value.trim(), cat: m.querySelector('#ac').value, note: m.querySelector('#ano').value.trim(), costs, lists, _ren: ren, _qs: qs};
 }
 function wireLists(t, m) {
   const box = m.querySelector('#als'), wire = r => catPick(r.querySelector('.lct'), r.querySelector('.lnc'));
@@ -1250,7 +1327,7 @@ function wireLists(t, m) {
     nav.querySelector('[data-pg="-1"]').disabled = page <= 0; nav.querySelector('[data-pg="1"]').disabled = page >= pages - 1; };
   nav.onclick = e => { const b = e.target.closest('[data-pg]'); if (b) { page += +b.dataset.pg; paintPg(); } };
   paintPg();
-  const nn = m.querySelector('#lnn'), ns = m.querySelector('#lnc2'), nw = m.querySelector('#lnk');
+  const nn = m.querySelector('#lnn'), ns = m.querySelector('#lnc2'), nw = m.querySelector('#lnk'), lq = m.querySelector('#lnq'), lu = m.querySelector('#lnu'), la = m.querySelector('#lna');
   catPick(ns, nw);
   box.onclick = e => { const b = e.target.closest('[data-lrm]'); if (b) { b.closest('.lrw').remove(); paintPg(); if (typeof chk === 'function') chk(); } };
   // tambah barang lewat baris input khusus; hasilnya masuk ke riwayat di bawahnya
@@ -1259,9 +1336,9 @@ function wireLists(t, m) {
     if (!ct && ns.value === '') ct = ((packAll(freshTrip(t.id) || t).find(e => e.key === nk(nm))) || {}).cat || 'Lainnya'; // kategori dikosongkan: ikut barang yang sama bila ada, jika tidak 'Lainnya'
     if (!ct) return 'Isi nama kategori baru.';
     if ([...box.querySelectorAll('.lnm')].some(i => nk(i.value) === nk(nm))) return 'Barang ini sudah ada di list kegiatan ini.';
-    box.insertAdjacentHTML('beforeend', listRow(t, {name: nm, cat: ct}));
+    box.insertAdjacentHTML('beforeend', listRow(freshTrip(t.id) || t, {name: nm, cat: ct, ...(la.checked ? {acc: true, q: qRead(lq, lu)} : lq.value.trim() ? {q: qRead(lq, lu)} : {})}));
     const r = box.lastElementChild; r.dataset.on = ''; wire(r); page = 1e9; paintPg();
-    nn.value = ''; nw.value = ''; ns.value = ''; catPick(ns, nw); return null; };
+    nn.value = ''; nw.value = ''; ns.value = ''; lq.value = ''; lu.value = 'pcs'; la.checked = false; catPick(ns, nw); return null; };
   m._flushItem = addItem;
   // barang yang sudah ada di list kegiatan ini: tombol + merah dan tidak bisa diklik
   const addBtn = m.querySelector('#lnb'), dupHint = document.createElement('div');
@@ -1283,19 +1360,20 @@ function wireLists(t, m) {
     const have = new Set([...box.querySelectorAll('.lnm')].map(i => nk(i.value)).filter(Boolean));
     const near = k => !q || k.includes(q) || (k.length >= 3 && q.includes(k)) || (q.length >= 3 && k.length >= 3 && lev(k, q) <= (Math.max(k.length, q.length) > 5 ? 2 : 1)); // termasuk kata mirip, mis. "bbaju" ~ "baju"
     const rank = k => k === q ? 0 : k.startsWith(q) ? 1 : k.includes(q) ? 2 : 3;
-    const all = packAll(f); // sertakan juga barang yang baru ditambahkan di form ini tetapi belum disimpan
+    const all = withPrep([...packAll(f)]); // sertakan juga barang yang baru ditambahkan di form ini tetapi belum disimpan
     [...box.querySelectorAll('.lrw')].forEach(r => { const title = r.querySelector('.lnm').value.trim(), key = nk(title);
       if (key && !all.some(e => e.key === key)) all.push({key, title, cat: readCat(r.querySelector('.lct'), r.querySelector('.lnc')) || 'Lainnya', uses: [], manual: [], done: false}); });
     const L = all.filter(e => near(e.key)).sort((a, b) => rank(a.key) - rank(b.key) || (+have.has(a.key)) - (+have.has(b.key)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
     hide(); if (!L.length) return;
     sg = document.createElement('div'); sg.className = 'sg';
-    sg.innerHTML = `<div class="sgh">Barang di trip ini — pilih yang belum ditambahkan, atau tekan + untuk barang baru</div>` + L.map(e => { const on = have.has(e.key);
+    sg.innerHTML = `<div class="sgh">Barang dari Prepare &amp; trip ini — pilih yang belum ditambahkan, atau tekan + untuk barang baru</div>` + L.map(e => { const on = have.has(e.key);
       return `<button type="button" class="sgo" data-k="${esc(e.key)}" ${on ? 'disabled style="opacity:.6;cursor:default"' : ''}><span>${esc(e.title)}<br><span class="mu" style="${on ? 'color:var(--g);font-weight:600' : ''}">${on ? '✓ Sudah ditambahkan' : 'Belum ditambahkan'}</span></span><span class="mu">${esc(e.cat)}</span></button>`; }).join('');
     nn.parentNode.appendChild(sg);
     sg.querySelectorAll('.sgo').forEach(b => { b.onmousedown = ev => ev.preventDefault(); b.onclick = () => { const e = L.find(x => x.key === b.dataset.k); if (!e || have.has(e.key)) return;
       nn.value = e.title;
       if (![...ns.options].some(o => o.value === e.cat)) ns.insertAdjacentHTML('beforeend', `<option value="${esc(e.cat)}">${esc(e.cat)}</option>`);
-      ns.value = e.cat; catPick(ns, nw); chk(); hide(); nn.focus(); }; }); };
+      ns.value = e.cat; la.checked = !!e.acc; if (e.qty && !e.acc) { lq.value = e.qty.toLocaleString('id-ID'); lu.value = e.unit || 'pcs'; } else { lq.value = ''; lu.value = e.acc ? (e.unit || 'pcs') : 'pcs'; }
+      catPick(ns, nw); chk(); hide(); nn.focus(); }; }); };
   nn.addEventListener('input', show); nn.addEventListener('focus', show); nn.addEventListener('blur', () => setTimeout(hide, 120));
 }
 function wireACat(t, m) {
@@ -1313,16 +1391,16 @@ function wireACat(t, m) {
   sel.innerHTML = ACAT.map(c => `<option>${esc(c)}</option>`).join(''); sel.value = ACAT.includes(nc) ? nc : acat({cat: nc}); }); }
 function addPlan(t, date) {
   wireACat(t, openEdit('Tambah kegiatan', actBody(t, {date}), m => { const v = readAct(t, m); if (!v) return;
-    const {_ren, ...vv} = v, f = freshTrip(t.id) || t; save(f, {itin: [...f.itin, {id: uid(), ...vv}]}); return true; }));
+    const {_ren, _qs, ...vv} = v, f = freshTrip(t.id) || t; save(f, {itin: [...f.itin, {id: uid(), ...vv}], ...(_qs.length ? {pqty: _qs.reduce((q, [k, v]) => setQ(q, k, k, v), f.pqty || {})} : {})}); return true; }));
 }
 function editPlan(t, it) {
   const ov = openEdit('Edit kegiatan', actBody(t, it), m => { const v = readAct(t, m); if (!v) return;
-    const {_ren, ...vv} = v, f = freshTrip(t.id) || t;
+    const {_ren, _qs, ...vv} = v, f = freshTrip(t.id) || t;
     const itin = f.itin.map(i => i.id === it.id ? withCosts({...i, ...vv}, vv.costs) : i);
     const cur = f.itin.find(i => i.id === it.id), pack = keepOrphans(f, cur ? cur.lists : [], itin, f.pack || [], _ren.map(r => r[0]));
     const ks = new Set(packAll({...f, itin, pack}).map(e => e.key)), pd = new Set(f.pdone || []);
     _ren.forEach(([o, n]) => { if (pd.has(o) && !ks.has(o)) pd.add(n); });
-    save(f, {itin, pack, store: (f.store || []).map(x => { const r = _ren.find(q => q[0] === nk(x.n)), l = r && vv.lists.find(l => nk(l.name) === r[1]); return l ? {...x, n: l.name} : x; }), porder: _ren.reduce((a, [o, n]) => a.map(k => k === o ? n : k), f.porder || []), pqty: _ren.reduce((q, [o, n]) => mvQ(q, o, n), f.pqty || {}), pdone: [...pd].filter(k => ks.has(k))}); return true; });
+    save(f, {itin, pack, store: (f.store || []).map(x => { const r = _ren.find(q => q[0] === nk(x.n)), l = r && vv.lists.find(l => nk(l.name) === r[1]); return l ? {...x, n: l.name} : x; }), porder: _ren.reduce((a, [o, n]) => a.map(k => k === o ? n : k), f.porder || []), pqty: _qs.reduce((q, [k, v]) => setQ(q, k, k, v), _ren.reduce((q, [o, n]) => mvQ(q, o, n), f.pqty || {})), pdone: [...pd].filter(k => ks.has(k))}); return true; });
   wireACat(t, ov);
   // tombol hapus kegiatan di sebelah kiri Batal
   const dl = document.createElement('button'); dl.type = 'button'; dl.className = 'ghost'; dl.id = 'edel'; dl.setAttribute('aria-label', 'Hapus kegiatan'); dl.title = 'Hapus kegiatan';
@@ -1426,7 +1504,7 @@ function openActRecap(t, it0) {
       ${bags.length ? `<h4 class="rh">Tas yang dibawa · ${bags.length}</h4>` + bags.map(z => `<div class="cr" style="align-items:center">${ic(ST_BAG, 18)}<span class="cl"><b>${esc(z.n)}</b></span></div>` + (stKids(f, z.id).length ? bagLines(z.id, 1) : '<div class="mu" style="padding:2px 0 6px 26px">Kosong</div>')).join('') : ''}
       <h4 class="rh" data-lt>List persiapan${ls.length ? ' · ' + dn + '/' + ls.length + ' siap' : ''}</h4>
       ${ls.length ? cats.map((c, k) => { const g = ls.filter(l => l.cat === c);
-        return `<div class="dg" data-cg="${k}">${esc(c)} · ${g.filter(isD).length}/${g.length}</div>` + g.map(l => `<label class="cr" style="cursor:pointer;align-items:center"><input type="checkbox" data-rk="${esc(nk(l.name))}" ${isD(l) ? 'checked' : ''} aria-label="Centang ${esc(l.name)}" style="width:20px;height:20px;padding:0;flex:none"><span class="cl ${isD(l) ? 'done' : ''}">${esc(l.name)}</span></label>`).join(''); }).join('') : '<span class="mu">Belum ada list.</span>'}
+        return `<div class="dg" data-cg="${k}">${esc(c)} · ${g.filter(isD).length}/${g.length}</div>` + g.map(l => `<label class="cr" style="cursor:pointer;align-items:center"><input type="checkbox" data-rk="${esc(nk(l.name))}" ${isD(l) ? 'checked' : ''} aria-label="Centang ${esc(l.name)}" style="width:20px;height:20px;padding:0;flex:none"><span class="cl ${isD(l) ? 'done' : ''}">${esc(l.name)}${lqTxt(l, ents.get(nk(l.name))) ? ` <span class="mu" style="font-weight:400">${esc(lqTxt(l, ents.get(nk(l.name))))}</span>` : ''}</span></label>`).join(''); }).join('') : '<span class="mu">Belum ada list.</span>'}
     </div>
     <div class="row" style="margin:12px 0 0"><button type="button" id="rc">Tutup</button></div></div>`;
   document.body.appendChild(o);
@@ -1532,7 +1610,7 @@ async function exportPdf(t) {
   doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...G);
   const tl = doc.splitTextToSize(t.name, W - 2 * M); doc.text(tl, M, y); y += tl.length * 8;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MU);
-  doc.text(`${t.dest} · ${t.tbd ? 'Tanggal belum pasti' : fd(t.start) + ' - ' + fd(t.end) + ' · ' + days + ' hari'}`, M, y); y += 5;
+  doc.text(`${t.tbd ? 'Tanggal belum pasti' : fd(t.start) + ' - ' + fd(t.end) + ' · ' + days + ' hari'}`, M, y); y += 5;
   doc.text(`Dibuat ${fd(todayISO())} · ${SLBL[stat(t)]}`, M, y); y += 4;
   sec('Ringkasan');
   tbl({body: [['Anggaran', rp(t.budget)], ['Realisasi biaya', rp(tot)], [t.budget && tot > t.budget ? 'Melebihi anggaran' : 'Sisa anggaran', t.budget ? rp(Math.abs(t.budget - tot)) : '-'], ['Jumlah kegiatan', String(t.itin.length)]],
@@ -1548,7 +1626,7 @@ async function exportPdf(t) {
     doc.text((d < t.start ? 'Persiapan Keberangkatan' : inTrip(t, d) ? 'Hari ' + (dayDiff(d, t.start) + 1) : 'Setelah trip') + (t.tbd ? '' : ' · ' + sd(d)), M, y); y += 2;
     const L = by[d].sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
     tbl({head: [['Jam', 'Kegiatan', 'Kategori', 'Biaya']],
-      body: L.map(i => { const dur = durOf(t, i), nm = (i.lists || []).map(l => l.name).filter(Boolean);
+      body: L.map(i => { const dur = durOf(t, i), pe = new Map(packAll(t).map(e => [e.key, e])), nm = (i.lists || []).filter(l => l.name).map(l => l.name + (lqTxt(l, pe.get(nk(l.name))) ? ' ' + lqTxt(l, pe.get(nk(l.name))) : ''));
         return [i.time || '-', i.title + (dur ? ' (' + dur + ')' : '') + (i.note ? '\n' + i.note : '') + (nm.length ? '\nBawa: ' + nm.join(', ') : ''), acat(i), costSum(i) > 0 ? rp(costSum(i)) : '-']; }),
       columnStyles: {0: {cellWidth: 16}, 2: {cellWidth: 26}, 3: {cellWidth: 28, halign: 'right'}}});
   });
@@ -1580,11 +1658,11 @@ async function exportPdf(t) {
 function renderPlanDetail() {
   const t = getTrip();
   A.innerHTML = `<div class="dhd"><button class="hb" id="bk" aria-label="Kembali ke daftar perjalanan">${ic('<path d="m15 18-6-6 6-6"/>', 24)}</button>
-    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${esc(t.dest)} · ${trg(t)}</div></div><button class="hb" id="pdf" aria-label="Unduh PDF" title="Unduh PDF">${ic('<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', 22)}</button><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
-    <div class="pdg"><div class="pdl"><div id="tb"></div></div><div class="pdr"><h2 class="sec" style="margin:22px 0 10px">Anggaran &amp; Realisasi Biaya</h2><div id="bd"></div><h2 class="sec" style="margin:22px 0 10px">Packing List</h2><div id="pk"></div><h2 class="sec" style="margin:22px 0 10px">Storage</h2><div id="sg"></div></div></div>
+    <div style="flex:1;min-width:0"><h2 class="sec" style="margin:0;overflow-wrap:anywhere">${esc(t.name)}</h2><div class="mu">${trg(t)}</div></div><button class="hb" id="pdf" aria-label="Unduh PDF" title="Unduh PDF">${ic('<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>', 22)}</button><button class="hb" id="et" aria-label="Edit perjalanan">${PEN}</button><button class="hb" id="dup" aria-label="Duplikat perjalanan">${ic(COPY, 22)}</button></div>
+    <div class="pdg"><div class="pdl"><h2 class="sec" style="margin:22px 0 10px">Anggaran &amp; Realisasi Biaya</h2><div id="bd"></div><h2 class="sec" style="margin:22px 0 10px">Rincian kegiatan</h2><div id="tb"></div></div><div class="pdr"><h2 class="sec" style="margin:22px 0 10px">Packing List</h2><div id="pk"></div><h2 class="sec" style="margin:22px 0 10px">Storage</h2><div id="sg"></div></div></div>
     <p style="text-align:center"><button class="del" id="dt">Hapus trip ini</button></p>`;
   $('#bk').onclick = () => { planOpen = false; render(); window.scrollTo(0, 0); };
-  $('#dt').onclick = async () => { if (confirm('Hapus trip ini beserta isinya?')) { const id = t.id; cur = null; planOpen = false; await deleteDoc(tripRef(id)); } };
+  $('#dt').onclick = async () => { if (confirm(delMsg())) { const id = t.id; await prepKeepTrip(id); cur = null; planOpen = false; await deleteDoc(tripRef(id)); } };
   $('#pdf').onclick = async e => { const b = e.currentTarget; b.disabled = true;
     try { await exportPdf(freshTrip(t.id) || t); }
     catch (x) { alert(x && x.message === 'load' ? 'Gagal memuat pembuat PDF. Pastikan terhubung ke internet lalu coba lagi.' : 'Gagal membuat PDF: ' + (x && x.message)); }
@@ -1658,13 +1736,13 @@ function tabCost(t, el) {
 // ---- Edit trip (nama, tujuan, tanggal) ----
 function editTrip(t) {
   const ov = openEdit('Edit perjalanan', `<div class="row"><input id="tn" placeholder="Nama trip" required value="${esc(t.name)}"></div>
-    <div class="row"><input id="td" placeholder="Tujuan" required value="${esc(t.dest)}"></div>
+    
     <div id="tdr"><div class="mu" style="margin:0 0 4px">Tanggal trip</div>
     <div class="row">${dField('tsa', t.tbd ? '' : t.start)}${dField('tse', t.tbd ? '' : t.end)}</div></div>
     <div class="ck"><label><input type="checkbox" id="ttbd" ${t.tbd ? 'checked' : ''}><span>Tanggal belum pasti (masih perkiraan trip)</span></label></div>
     <div id="tshift"><div class="ck"><label><input type="checkbox" id="tk1" checked><span>Geser kegiatan mengikuti tanggal mulai baru</span></label></div>
     <div class="mu" style="margin-bottom:6px">Jika tanggal mulai tidak berubah, kegiatan tidak bergeser. Kegiatan persiapan sebelum keberangkatan tetap dipertahankan; kegiatan yang melewati tanggal selesai baru dipindah ke hari terakhir trip.</div></div>`, m => {
-    const base = {name: m.querySelector('#tn').value.trim(), dest: m.querySelector('#td').value.trim()};
+    const base = {name: m.querySelector('#tn').value.trim()};
     if (m.querySelector('#ttbd').checked) {
       save(t, {...base, tbd: true, start: '', end: '',
         ...(!t.tbd ? {itin: t.itin.map(i => ({...i, date: addDays(VB, Math.max(0, dayDiff(i.date, t.start)))}))} : {})});
@@ -1703,7 +1781,7 @@ function duplicateTrip(t) {
       if (ne < ns) return alert('Tanggal selesai harus setelah tanggal mulai.');
     }
     const off = t.tbd ? 0 : dayDiff(ns, t.start), clamp = t.tbd ? (d => d) : (d => { const x = addDays(d, off); return x > ne ? ne : x; });
-    const nt = {name: m.querySelector('#dn').value.trim(), dest: t.dest, tbd: !!t.tbd, start: ns, end: ne,
+    const nt = {name: m.querySelector('#dn').value.trim(), tbd: !!t.tbd, start: ns, end: ne,
       budget: m.querySelector('#dk3').checked ? (t.budget || 0) : 0,
       itin: m.querySelector('#dk1').checked ? t.itin.map(i => ({...i, id: uid(), date: clamp(i.date), fav: false, lists: (i.lists || []).map(l => ({...l, id: uid()}))})) : [],
       porder: t.porder || [], pqty: m.querySelector('#dk2').checked ? (t.pqty || {}) : {}, exp: [], pdone: [], pack: !m.querySelector('#dk2').checked ? [] : (m.querySelector('#dk1').checked ? t.pack : packAll(t)).map(p => ({id: uid(), title: p.title, cat: p.cat || 'Lainnya', done: false})),
@@ -1746,7 +1824,7 @@ function renderCal() {
   const arow = ({t, i}) => `<div class="ac cp" data-it="${i.id}" data-t="${t.id}"><span class="ib">${ic(aci(acat(i)), 18)}</span><div class="cm"><div class="ct2">${esc(i.title)}</div><div class="mu"><b class="tm3">${esc(i.time) || 'Tanpa jam'}</b>${durOf(t, i) ? ' · ' + durOf(t, i) : ''} · ${acat(i)}</div></div></div>`;
   const grow = id => { const t = trips.find(x => x.id === id), acts = sorted.filter(x => x.t.id === id), key = sel + '|' + id, open = !!cal.exp[key] && acts.length > 0;
     const inR = sel >= t.start && sel <= t.end, n = dayDiff(sel, t.start) + 1, tot = dayDiff(t.end, t.start) + 1;
-    const meta = [esc(t.dest), inR ? `Hari ${n} dari ${tot}` : '', sel === t.start ? 'Mulai' : '', sel === t.end ? 'Selesai' : '', acts.length ? acts.length + ' kegiatan' : ''].filter(Boolean).join(' · ');
+    const meta = [inR ? `Hari ${n} dari ${tot}` : '', sel === t.start ? 'Mulai' : '', sel === t.end ? 'Selesai' : '', acts.length ? acts.length + ' kegiatan' : ''].filter(Boolean).join(' · ');
     return `<div class="tg${open ? ' open' : ''}" data-key="${key}"><div class="ac cp" ${acts.length ? 'data-tg' : `data-tr="${t.id}"`}><span class="ib">${ic(P.pin, 18)}</span><div class="cm"><div class="ct2">${esc(t.name)}</div><div class="mu">${meta}</div></div>${acts.length ? `<span class="chv">${ic('<path d="m9 18 6-6-6-6"/>', 18)}</span>` : ''}</div>
       ${acts.length ? `<div class="tgb"${open ? '' : ' hidden'}>${acts.map(arow).join('')}<button class="ghost sm go" data-tr="${t.id}">Buka rencana trip</button></div>` : ''}</div>`; };
   A.innerHTML = `<div class="calw"><div class="calL"><div class="calh"><button class="hb" id="calp" aria-label="Bulan sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 22)}</button>
@@ -1981,6 +2059,7 @@ function tabPack(t, el, full) {
   const sgGet = k => { try { return JSON.parse(localStorage.getItem(k)) || null; } catch { return null; } }, sgSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
   const sugPaint = () => { const box = el.querySelector('#psug'), c = el.querySelector('#pc').value, have = new Set(ents.map(x => x.key)), seen = new Set(), out = [], hid = new Set(sgGet('et-sughide') || []), ren = sgGet('et-sugren') || {};
     if (c && c !== '__new') (trips || []).forEach(x => { if (x.id === t.id) return; packAll(x).forEach(e => { const sk = c + '|' + e.key, ti = ren[sk] || e.title, nkey = nk(ti); if (e.cat === c && !hid.has(sk) && !have.has(nkey) && !seen.has(nkey)) { seen.add(nkey); out.push({...e, sk, title: ti, key: nkey}); } }); });
+    if (c && c !== '__new') prepCat.forEach(p => { const sk = c + '|' + p.key, ti = ren[sk] || p.title, nkey = nk(ti); if ([p.cat || 'Lainnya', ...(p.cats || [])].includes(c) && !hid.has(sk) && !have.has(nkey) && !seen.has(nkey)) { seen.add(nkey); out.push({key: nkey, title: ti, cat: c, sk}); } });
     if (!out.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
     box.style.display = '';
     box.innerHTML = `<div class="sugh" role="button" tabindex="0" aria-expanded="${sugOpen}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer"><span class="mu"><b>Rekomendasi dari trip sebelumnya · ${esc(c)}</b></span><span class="lnav" aria-hidden="true">${ic(sugOpen ? '<path d="m18 15-6-6-6 6"/>' : '<path d="m6 9 6 6 6-6"/>', 20)}</span></div>` + (!sugOpen ? '' : '<div style="margin-top:6px">' + out.map(e => `<div class="item"><input type="checkbox" data-sg="${esc(e.key)}" aria-label="Tambahkan ${esc(e.title)}"><span class="t"><span class="tt" data-sgt="${esc(e.key)}">${esc(e.title)}</span></span><button type="button" class="del ed" data-sge="${esc(e.key)}" aria-label="Ganti nama" title="Ganti nama">${PEN}</button><button type="button" class="del" data-sgx="${esc(e.key)}" aria-label="Hapus dari rekomendasi" title="Hapus dari rekomendasi">✕</button></div>`).join('') + '</div>');
@@ -2023,12 +2102,12 @@ function tabPack(t, el, full) {
     const pack = t.pack.filter(p => nk(p.title) !== k);
     save(t, {pack, pdone: keepDone(t, t.itin, pack), pqty: packAll({...t, pack}).some(q => q.key === k) ? (t.pqty || {}) : setQ(t.pqty, k, '', 0)}); });
   root.querySelectorAll('[data-e]').forEach(b => b.onclick = () => { const x = ents.find(q => q.key === b.dataset.e); if (!x) return;
-    const m = openEdit('Edit barang', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><input id="eq" class="qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" value="${x.qty ? x.qty.toLocaleString('id-ID') : ''}" style="flex:1 1 0"><select id="eu" aria-label="Satuan" style="flex:1 1 0">${qOpts(x.unit)}</select></div><div class="row"><select id="ecat">${catOpts(t, x.cat)}</select></div><div class="row"><input id="ecn" placeholder="Nama kategori baru" maxlength="30"></div>${useBox(t, x.key)}`, m => {
+    const m = openEdit('Edit barang', `<div class="row"><input id="en" value="${esc(x.title)}" required></div><div class="row"><input id="eq" class="qy" inputmode="numeric" autocomplete="off" placeholder="${x.acc ? 'Otomatis dari kegiatan' : 'Qty (opsional)'}" value="${x.qty ? x.qty.toLocaleString('id-ID') : ''}" ${x.acc ? 'disabled' : ''} style="flex:1 1 0"><select id="eu" aria-label="Satuan" ${x.acc ? 'disabled' : ''} style="flex:1 1 0">${qOpts(x.unit)}</select></div>${x.acc ? '<div class="mu" style="margin:-2px 0 6px">Jumlah dihitung otomatis dari kegiatan yang dicentang Akumulasi. Ubah lewat kegiatannya.</div>' : ''}<div class="row"><select id="ecat">${catOpts(t, x.cat)}</select></div><div class="row"><input id="ecn" placeholder="Nama kategori baru" maxlength="30"></div>${useBox(t, x.key)}`, m => {
       const nm = m.querySelector('#en').value.trim(), ct = readCat(m.querySelector('#ecat'), m.querySelector('#ecn'));
       if (!nm || !ct) return alert('Isi nama barang dan kategori.');
       if (nk(nm) !== x.key && ents.some(q => q.key === nk(nm))) return alert('Barang ini sudah ada di packing list.');
       const pack = t.pack.map(q => nk(q.title) === x.key ? {...q, title: nm, cat: ct} : q), itin = applyUse(t, x.key, nm, ct, readUse(m));
-      save(t, {pack, itin, store: renSt(t, x.key, nm), porder: renPo(t, x.key, nk(nm)), pqty: setQ(t.pqty, x.key, nk(nm), qRead(m.querySelector('#eq'), m.querySelector('#eu'))), pdone: keepDone(t, itin, pack)}); return true;
+      save(t, {pack, itin, store: renSt(t, x.key, nm), porder: renPo(t, x.key, nk(nm)), pqty: x.acc ? mvQ(t.pqty, x.key, nk(nm)) : setQ(t.pqty, x.key, nk(nm), qRead(m.querySelector('#eq'), m.querySelector('#eu'))), pdone: keepDone(t, itin, pack)}); prepRename(x.key, nm); return true;
     });
     if (m) { catPick(m.querySelector('#ecat'), m.querySelector('#ecn')); wireUse(m); } });
   root.querySelectorAll('[data-ec]').forEach(b => b.onclick = () => { const x = ents.find(q => q.key === b.dataset.ec); if (!x) return;
@@ -2048,7 +2127,7 @@ function tabPack(t, el, full) {
     const pack = (f.pack || []).map(p => nk(p.title) === x.key ? {...p, title: nm} : p);
     const itin = f.itin.map(i => (i.lists || []).some(l => nk(l.name) === x.key) ? {...i, lists: i.lists.map(l => nk(l.name) === x.key ? {...l, name: nm} : l)} : i);
     const pd = new Set(f.pdone || []); if (nn !== x.key && pd.has(x.key)) { pd.delete(x.key); pd.add(nn); }
-    save(f, {pack, itin, store: renSt(f, x.key, nm), porder: renPo(f, x.key, nn), pqty: mvQ(f.pqty, x.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); return true; };
+    save(f, {pack, itin, store: renSt(f, x.key, nm), porder: renPo(f, x.key, nn), pqty: mvQ(f.pqty, x.key, nn), pdone: keepDone({...f, pdone: [...pd]}, itin, pack)}); prepRename(x.key, nm); return true; };
   const startRename = (span, x) => { const inp = document.createElement('input'); inp.value = x.title; inp.maxLength = 60; inp.setAttribute('aria-label', 'Ganti nama barang'); inp.style.cssText = 'padding:4px 8px;width:100%';
     span.replaceWith(inp); inp.focus(); inp.select(); let fin = false;
     const end = ok => { if (fin) return; fin = true; if (!(ok && renameEnt(x, inp.value)) && inp.isConnected) inp.replaceWith(span); };
