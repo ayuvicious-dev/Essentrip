@@ -108,6 +108,14 @@ textarea{resize:vertical;min-height:76px}
 .sg .sgh{padding:6px 12px 2px;color:var(--mu);font-size:calc(11px*var(--fs,1))}
 .sg button.sgo{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:transparent;color:var(--tx);border:0;border-bottom:1px solid var(--bd);border-radius:0;text-align:left;font-weight:500;padding:9px 12px}
 .sg button.sgo:last-child{border:0}.sg button.sgo .mu{flex:none}
+.item.mk{background:var(--act);border-radius:6px}.item .mkc{color:var(--g);font-weight:700;margin-right:6px}
+.ppm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.ppm select{flex:1 1 160px;min-width:0}.ppm .mu{flex:1 1 100%}
+.sg .sgt{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--bd);z-index:1}
+.sg .sgf{display:flex;gap:6px;overflow-x:auto;padding:8px 10px;-webkit-overflow-scrolling:touch}
+.sg button.sga{display:block;width:calc(100% - 20px);margin:0 10px 8px;padding:7px 10px;border-radius:8px;font-size:calc(13px*var(--fs,1))}
+.sg button.sga:disabled{opacity:.5;cursor:default}
+.sg button.sgc{flex:none;width:auto;background:transparent;color:var(--tx);border:1px solid var(--bd);border-radius:999px;padding:4px 10px;font-size:calc(12px*var(--fs,1));font-weight:500;white-space:nowrap}
+.sg button.sgc.on{background:var(--btn);color:#fff;border-color:var(--btn)}
 .fl{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}.fl::-webkit-scrollbar{display:none}
 .fb{flex:none;width:46px;height:46px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;background:var(--card);color:var(--g);border:1.5px solid var(--pb)}
 .fb.on{background:var(--chipon);border-color:var(--chipon);color:#fff}
@@ -762,7 +770,14 @@ function syncPrep() {
 }
 // pastikan barang sebuah trip sudah tersimpan di database Prepare sebelum trip dihapus
 // saran nama barang: barang trip + semua barang yang ada di Prepare (tanpa dobel)
-const withPrep = arr => { const ks = new Set(arr.map(e => e.key)); prepCat.forEach(c => { if (c && c.key && !ks.has(c.key)) { ks.add(c.key); arr.push({key: c.key, title: c.title || c.key, cat: c.cat || 'Lainnya', qty: +c.qty || 0, unit: c.unit || 'pcs', uses: [], manual: [], done: false}); } }); return arr; };
+const withPrep = arr => { const ks = new Set(arr.map(e => e.key)), pm = new Map(prepCat.filter(c => c && c.key).map(c => [c.key, c])); arr.forEach(e => { const c = pm.get(e.key); if (c && c.cats && c.cats.length && !e.cats) e.cats = c.cats; }); prepCat.forEach(c => { if (c && c.key && !ks.has(c.key)) { ks.add(c.key); arr.push({key: c.key, title: c.title || c.key, cat: c.cat || 'Lainnya', cats: c.cats || [], qty: +c.qty || 0, unit: c.unit || 'pcs', uses: [], manual: [], done: false}); } }); return arr; };
+// filter kategori di daftar rekomendasi barang (chip kategori di atas daftar)
+const eCats = e => [...new Set([e.cat, ...(e.cats || [])].filter(Boolean))];
+const sgFilt = (L, cur) => cur ? L.filter(e => eCats(e).includes(cur)) : L;
+const sgChips = (L, cur, nAdd) => { const m = new Map(); L.forEach(e => eCats(e).forEach(c => m.set(c, (m.get(c) || 0) + 1)));
+  if (m.size < 2) return '';
+  return '<div class="sgt"><div class="sgf"><button type="button" class="sgc' + (cur ? '' : ' on') + '" data-c="">Semua · ' + L.length + '</button>' + [...m].sort((a, b) => a[0].localeCompare(b[0])).map(([c, n]) => '<button type="button" class="sgc' + (c === cur ? ' on' : '') + '" data-c="' + esc(c) + '">' + esc(c) + ' · ' + n + '</button>').join('') + '</div>' + (cur ? '<button type="button" class="sga" data-all' + (nAdd ? '' : ' disabled') + '>' + (nAdd ? '+ Tambahkan semua ' + nAdd + ' barang di ' + esc(cur) : 'Semua barang ' + esc(cur) + ' sudah ditambahkan') + '</button>' : '') + '</div>'; };
+const sgWire = (sg, sl, set, all) => { const fe = sg.querySelector('.sgf'); if (fe) fe.scrollLeft = sl; const ab = sg.querySelector('.sga'); if (ab) { ab.onmousedown = ev => ev.preventDefault(); ab.onclick = () => { if (!ab.disabled) all(); }; } sg.querySelectorAll('.sgc').forEach(b => { b.onmousedown = ev => ev.preventDefault(); b.onclick = () => set(b.dataset.c); }); };
 async function prepKeepTrip(id) {
   const t = freshTrip(id); if (!t || !prepReady) return;
   const have = new Set(prepCat.map(c => c.key));
@@ -829,6 +844,10 @@ const errMsg = x => ({
 
 // ---- Prepare: checklist gabungan seluruh trip (barang yang sama dari beberapa trip dijadikan satu) ----
 let ppQ = '', ppCat = null, prepAdd = null;
+// Remark: tandai barang yang sudah ada di trip terpilih (✓) agar terlihat barang yang belum ditambahkan / terlewat
+let ppMk = true, ppMkT = '';
+try { const z = JSON.parse(localStorage.getItem('et-ppmark')); if (z) { ppMk = !!z.on; ppMkT = z.t || ''; } } catch {}
+const ppSave = () => { try { localStorage.setItem('et-ppmark', JSON.stringify({on: ppMk, t: ppMkT})); } catch {} };
 function renderPrep() {
   prepAdd = null;
   const ord = {on: 0, up: 1, done: 2};
@@ -856,10 +875,14 @@ function renderPrep() {
     if (!ppCat) ppCat = cats[0];
     if (!q && ppCat && !cats.includes(ppCat)) cats.push(ppCat);
     const ci = Math.max(0, cats.indexOf(ppCat)), pg = !q && cats.length > 1, show = q ? cats : [cats[ci]];
-    const row = (e, c) => `<div class="item" data-ek="${esc(e.key)}" title="Klik untuk edit, klik 2x untuk ganti nama" style="cursor:pointer"><span class="t"><span class="tt" data-k="${esc(e.key)}">${esc(e.title)}</span></span></div>`;
-    $('#ppl').innerHTML = (L.length ? show.map(c => { const g = L.filter(e => (e.cats || [e.cat]).includes(c));
-      return `<div class="lgh lgn">${pg ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.length}</span></span>${pg ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + (g.length ? '<div class="ppg">' + g.map(e => row(e, c)).join('') + '</div>' : '<div class="mu" style="margin:8px 0">Belum ada barang di kategori ini.</div>'); }).join('') : '<div class="mu" style="margin:8px 0">' + (ents.length ? 'Tidak ada barang yang cocok.' : 'Belum ada barang. Tambahkan lewat form di atas.') + '</div>');
+    const mkT = ppMk ? (all.find(t => t.id === ppMkT) || all[0] || null) : null, isMk = e => !!mkT && e.trips.some(z => z.t.id === mkT.id);
+    const ppCtl = () => !all.length ? '' : `<div class="ppm"><button type="button" id="ppmk" class="sm${ppMk ? '' : ' ghost'}" aria-pressed="${ppMk}">✓ Remark</button>${mkT ? `<select id="ppmt" aria-label="Trip untuk remark">${all.map(t => `<option value="${esc(t.id)}"${t.id === mkT.id ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select><span class="mu">✓ = sudah ada di trip ini. Barang tanpa tanda belum ditambahkan (mungkin terlewat).</span>` : ''}</div>`;
+    const row = (e, c) => `<div class="item${isMk(e) ? ' mk' : ''}" data-ek="${esc(e.key)}" title="Klik untuk edit, klik 2x untuk ganti nama" style="cursor:pointer"><span class="t">${isMk(e) ? '<span class="mkc">✓</span>' : ''}<span class="tt" data-k="${esc(e.key)}">${esc(e.title)}</span></span></div>`;
+    $('#ppl').innerHTML = ppCtl() + (L.length ? show.map(c => { const g = L.filter(e => (e.cats || [e.cat]).includes(c));
+      return `<div class="lgh lgn">${pg ? `<button type="button" class="lnav" data-nv="-1" ${ci <= 0 ? 'disabled' : ''} aria-label="Kategori sebelumnya">${ic('<path d="m15 18-6-6 6-6"/>', 20)}</button>` : ''}<span class="lgt">${esc(c)} <span class="lgc">${g.length}</span>${mkT ? ` <span class="lgc" title="Sudah ada di ${esc(mkT.name)}">✓ ${g.filter(isMk).length}/${g.length}</span>` : ''}</span>${pg ? `<button type="button" class="lnav" data-nv="1" ${ci >= cats.length - 1 ? 'disabled' : ''} aria-label="Kategori berikutnya">${ic('<path d="m9 18 6-6-6-6"/>', 20)}</button>` : ''}</div>` + (g.length ? '<div class="ppg">' + g.map(e => row(e, c)).join('') + '</div>' : '<div class="mu" style="margin:8px 0">Belum ada barang di kategori ini.</div>'); }).join('') : '<div class="mu" style="margin:8px 0">' + (ents.length ? 'Tidak ada barang yang cocok.' : 'Belum ada barang. Tambahkan lewat form di atas.') + '</div>');
     const sc = $('#ppc'); if (!q && sc && [...sc.options].some(o => o.value === ppCat)) sc.value = ppCat;
+    const mb = $('#ppmk'); if (mb) mb.onclick = () => { ppMk = !ppMk; if (ppMk && !ppMkT && all[0]) ppMkT = all[0].id; ppSave(); paint(); };
+    const ms = $('#ppmt'); if (ms) ms.onchange = () => { ppMkT = ms.value; ppSave(); paint(); };
     $('#ppl').querySelectorAll('[data-nv]').forEach(b => b.onclick = () => { const n = cats[ci + +b.dataset.nv]; if (n) { ppCat = n; paint(); } });
     // klik 1x di mana saja pada baris barang (teks maupun area kosong): pop up edit (nama, qty, satuan, kategori) — berlaku di semua trip yang memakai barang ini
     // klik 1x: pop up edit; klik 2x: ganti nama langsung di tempat (jeda singkat agar 2 klik tidak membuka pop up)
@@ -1205,7 +1228,7 @@ function setLists(tid, aid, fn, mig, qp) {
   const pack = keepOrphans(t, cur ? cur.lists : [], itin, t.pack || [], mig ? [mig[0]] : []);
   const ks = new Set(packAll({...t, itin, pack}).map(e => e.key)), pd = new Set(t.pdone || []);
   if (mig && pd.has(mig[0]) && !ks.has(mig[0])) pd.add(mig[1]);
-  save(t, {itin, pack, ...(mig ? {store: (() => { const l = (itin.find(i => i.id === aid).lists || []).find(l => nk(l.name) === mig[1]); return l ? renSt(t, mig[0], l.name) : (t.store || []); })(), porder: renPo(t, mig[0], mig[1])} : {}), ...((mig || qp) ? {pqty: (() => { const q0 = mig ? mvQ(t.pqty, mig[0], mig[1]) : (t.pqty || {}); return qp ? setQ(q0, qp[0], qp[0], qp[1]) : q0; })()} : {}), pdone: [...pd].filter(k => ks.has(k))});
+  save(t, {itin, pack, ...(mig ? {store: (() => { const l = (itin.find(i => i.id === aid).lists || []).find(l => nk(l.name) === mig[1]); return l ? renSt(t, mig[0], l.name) : (t.store || []); })(), porder: renPo(t, mig[0], mig[1])} : {}), ...((mig || qp) ? {pqty: (() => { const q0 = mig ? mvQ(t.pqty, mig[0], mig[1]) : (t.pqty || {}); return qp ? (Array.isArray(qp[0]) ? qp.reduce((q, z) => setQ(q, z[0], z[0], z[1]), q0) : setQ(q0, qp[0], qp[0], qp[1])) : q0; })()} : {}), pdone: [...pd].filter(k => ks.has(k))});
 }
 function paintLists(box, tid, aid) {
   const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return false;
@@ -1247,24 +1270,36 @@ function listBox(tid, aid) {
   // rekomendasi: barang yang sudah pernah diinput di trip ini (packing list + kegiatan lain)
   const sg = document.createElement('div'); sg.className = 'sg'; sg.style.display = 'none'; inp.parentNode.appendChild(sg);
   const hide = () => { sg.style.display = 'none'; };
+  let fc = '', keepTop = 0; const just = new Set(), jmark = k => { just.add(k); setTimeout(() => just.delete(k), 2000); }; // barang yang baru ditambahkan: jangan muncul lagi di rekomendasi
   const showSg = () => { const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return hide();
     const have = new Set((it.lists || []).map(l => nk(l.name))), q = nk(inp.value);
-    const L = withPrep([...packAll(t)]).filter(e => !have.has(e.key) && (!q || e.key.includes(q))).sort((a, b) => (+b.key.startsWith(q)) - (+a.key.startsWith(q)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
-    if (!L.length) return hide();
-    sg.innerHTML = `<div class="sgh">Dari Prepare &amp; trip ini — pilih agar tidak dobel</div>` + L.map(e => `<button type="button" class="sgo" data-k="${esc(e.key)}"><span>${esc(e.title)}</span><span class="mu">${esc(e.cat)}</span></button>`).join('');
-    sg.style.display = '';
+    const L0 = withPrep([...packAll(t)]).filter(e => !have.has(e.key) && !just.has(e.key) && (!q || e.key.includes(q))).sort((a, b) => (+b.key.startsWith(q)) - (+a.key.startsWith(q)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
+    if (!L0.length) return hide();
+    if (fc && !L0.some(e => eCats(e).includes(fc))) fc = '';
+    const L = sgFilt(L0, fc), sl = (sg.querySelector('.sgf') || {}).scrollLeft || 0;
+    sg.innerHTML = `<div class="sgh">Dari Prepare &amp; trip ini — pilih agar tidak dobel</div>` + sgChips(L0, fc, L.length) + L.map(e => `<button type="button" class="sgo" data-k="${esc(e.key)}"><span>${esc(e.title)}</span><span class="mu">${esc(e.cat)}</span></button>`).join('');
+    sg.style.display = ''; sgWire(sg, sl, c => { fc = c; keepTop = 0; showSg(); }, () => { keepTop = 0; const cc = fc, its = L.slice(); if (!cc || !its.length) return;
+      const t2 = freshTrip(tid), it2 = t2 && t2.itin.find(i => i.id === aid); if (!it2) return; const hv = new Set((it2.lists || []).map(l => nk(l.name))), nw2 = its.filter(e => !hv.has(nk(e.title)));
+      if (!nw2.length) return hide(); lastCat = cc; box._cat = cc;
+      const pq = nw2.filter(e => !e.acc && e.qty).map(e => [nk(e.title), {n: e.qty, u: e.unit || 'pcs'}]);
+      nw2.forEach(e => jmark(nk(e.title)));
+      setLists(tid, aid, a => [...a, ...nw2.map(e => ({id: uid(), cat: cc, name: e.title, ...(e.acc ? {acc: true} : {})}))], null, pq.length ? pq : null);
+      inp.value = ''; fc = ''; inp.focus(); showSg(); });
     sg.querySelectorAll('.sgo').forEach(b => { b.onmousedown = ev => ev.preventDefault(); b.onclick = () => { const e = L.find(x => x.key === b.dataset.k); if (!e) return;
-      inp.value = e.title; if (![...sel.options].some(o => o.value === e.cat)) sel.insertAdjacentHTML('afterbegin', `<option value="${esc(e.cat)}">${esc(e.cat)}</option>`);
+      keepTop = sg.scrollTop; inp.value = e.title; if (![...sel.options].some(o => o.value === e.cat)) sel.insertAdjacentHTML('afterbegin', `<option value="${esc(e.cat)}">${esc(e.cat)}</option>`);
       sel.value = e.cat; qa.checked = !!e.acc; if (e.qty && !e.acc) { qi.value = e.qty.toLocaleString('id-ID'); qu.value = e.unit || 'pcs'; } else { qi.value = ''; qu.value = e.acc ? (e.unit || 'pcs') : 'pcs'; }
       catPick(sel, nw); hide(); inp.focus(); }; }); };
+  const showSgAt = () => { const k = keepTop; keepTop = 0; showSg(); if (k && sg.style.display !== 'none') sg.scrollTop = k; }; // setelah menambah: daftar kembali ke posisi barang terakhir yang dipilih
+  inp.addEventListener('input', () => { keepTop = 0; });
   inp.oninput = showSg; inp.onfocus = showSg; inp.onblur = () => setTimeout(hide, 120);
   const add = () => { hide(); const nm = inp.value.trim(), ct = readCat(sel, nw);
     if (!nm) return inp.focus(); if (!ct) return alert('Isi nama kategori baru.');
     const t = freshTrip(tid), it = t && t.itin.find(i => i.id === aid); if (!it) return;
     if ((it.lists || []).some(l => nk(l.name) === nk(nm))) return alert('Barang ini sudah ada di list kegiatan ini.');
-    lastCat = ct; box._cat = ct; const qq = qRead(qi, qu), ac = qa.checked; setLists(tid, aid, a => [...a, {id: uid(), cat: ct, name: nm, ...(ac ? {acc: true, ...(qq ? {q: qq} : {})} : {})}], null, !ac && qq ? [nk(nm), qq] : null);
+    lastCat = ct; box._cat = ct; jmark(nk(nm)); const qq = qRead(qi, qu), ac = qa.checked; setLists(tid, aid, a => [...a, {id: uid(), cat: ct, name: nm, ...(ac ? {acc: true, ...(qq ? {q: qq} : {})} : {})}], null, !ac && qq ? [nk(nm), qq] : null);
     inp.value = ''; qi.value = ''; qu.value = 'pcs'; qa.checked = false; nw.value = ''; sel.value = ct; if (![...sel.options].some(o => o.value === ct)) { sel.insertAdjacentHTML('afterbegin', `<option value="${esc(ct)}">${esc(ct)}</option>`); sel.value = ct; }
-    catPick(sel, nw); inp.focus(); hide(); };
+    catPick(sel, nw); inp.focus(); showSgAt(); }; // daftar rekomendasi langsung muncul lagi setelah menambah barang
+  box.querySelector('.lbtn').onmousedown = e => e.preventDefault(); // jaga fokus di kolom nama agar daftar tidak tertutup
   box.querySelector('.lbtn').onclick = add;
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   return box;
@@ -1274,7 +1309,9 @@ const PLUSB = (id, label) => `<button type="button" class="ghost" id="${id}" ari
 const costRow = (c = {}) => `<div class="row cstr" data-id="${esc(c.id || '')}"><input class="cnm" placeholder="Nama biaya" maxlength="60" value="${esc(c.name)}"><input class="rpi cam" type="text" inputmode="numeric" autocomplete="off" placeholder="Biaya (Rp)" style="flex:0 0 116px" value="${+c.amt > 0 ? rpFmt(c.amt) : ''}"><button type="button" class="del" data-crm aria-label="Hapus biaya" style="flex:0 0 auto">✕</button></div>`;
 const accBox = (cls, on) => `<label class="lac" title="Centang: jumlah ditambahkan tiap kegiatan (mis. celana dalam di 3 kegiatan = 3). Tidak dicentang: satu barang dipakai bersama."><input type="checkbox" class="${cls}a" ${on ? 'checked' : ''}><span>Akumulasi</span></label>`;
 const qRow = (cls, q, acc) => `<div class="row"><input class="${cls}q qy" inputmode="numeric" autocomplete="off" placeholder="Qty (opsional)" aria-label="Jumlah (opsional)" value="${q ? q.n.toLocaleString('id-ID') : ''}" style="flex:1 1 0;min-width:0"><select class="${cls}u" aria-label="Satuan" style="flex:${acc === undefined ? '1 1 0' : '0 0 80px'};min-width:0">${qOpts(q ? q.u : 'pcs')}</select>${acc === undefined ? '' : accBox(cls, acc)}</div>`;
-const listRow = (t, l = {}) => `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}"><select class="lct" aria-label="Kategori" style="flex:0 0 112px">${l.cat ? '' : '<option value="" selected>Kategori</option>'}${catOpts(t, l.cat)}</select><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto">✕</button></div>${qRow('ln', l.acc ? qv(l.q) : (l.q !== undefined ? l.q : qv(((t && t.pqty) || {})[nk(l.name || '')])), !!l.acc)}<div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`;
+const listRow = (t, l = {}) => { const q = l.acc ? qv(l.q) : (l.q !== undefined ? l.q : qv(((t && t.pqty) || {})[nk(l.name || '')]));
+  // satu deret: nama · kategori · qty · satuan · akumulasi · hapus (kolom kategori baru muncul di baris sendiri bila dipilih)
+  return `<div class="lrw" data-id="${esc(l.id || '')}" data-on="${esc(l.name || '')}"><div class="row" style="flex-wrap:nowrap;align-items:center;gap:4px"><input class="lnm" placeholder="Nama barang" maxlength="60" value="${esc(l.name)}" style="flex:1 1 0;min-width:0;padding-left:8px;padding-right:6px"><select class="lct" aria-label="Kategori" style="flex:0 0 78px;min-width:0;padding-left:6px;padding-right:0">${l.cat ? '' : '<option value="" selected>Kategori</option>'}${catOpts(t, l.cat)}</select><input class="lnq qy" inputmode="numeric" autocomplete="off" placeholder="Qty" aria-label="Jumlah (opsional)" value="${q ? q.n.toLocaleString('id-ID') : ''}" style="flex:0 0 40px;width:40px;min-width:0;padding-left:2px;padding-right:2px;text-align:center"><select class="lnu" aria-label="Satuan" style="flex:0 0 54px;width:54px;min-width:0;padding-left:4px;padding-right:0">${qOpts(q ? q.u : 'pcs')}</select><label class="lac" title="Akumulasi — centang: jumlah ditambahkan tiap kegiatan (mis. celana dalam di 3 kegiatan = 3). Tidak dicentang: satu barang dipakai bersama." style="gap:3px"><input type="checkbox" class="lna" aria-label="Akumulasi" ${l.acc ? 'checked' : ''} style="width:18px;height:18px"></label><button type="button" class="del" data-lrm aria-label="Hapus barang" style="flex:0 0 auto;padding:4px 2px">✕</button></div><div class="row"><input class="lnc" placeholder="Nama kategori baru" maxlength="30"></div></div>`; };
 const actBody = (t, it = {}) => `<div class="row">${t.tbd ? dayField('ad', it.date) : dField('ad', it.date || '', '', t.end)}${tField('ah', it.time || '')}</div>
   <div class="row"><input id="an" placeholder="Kegiatan / tempat" required value="${esc(it.title)}" style="flex:1 1 0"><select id="ac" style="flex:0 0 112px">${ACAT.map(c => `<option ${c === acat(it) ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><button type="button" class="ab" id="ack" aria-label="Kelola kategori kegiatan" title="Kelola kategori" style="flex:0 0 44px;color:var(--g);justify-content:center">${PEN}</button></div>
   <div class="lsx" style="margin:8px 0 6px"><h4>Biaya</h4>
@@ -1347,8 +1384,10 @@ function wireLists(t, m) {
   const chk = () => { const q = nk(nn.value), dup = !!q && [...box.querySelectorAll('.lnm')].some(i => nk(i.value) === q);
     addBtn.disabled = dup; addBtn.classList.toggle('dup', dup); dupHint.style.display = dup ? '' : 'none'; };
   nn.addEventListener('input', chk); box.addEventListener('input', chk);
-  addBtn.onclick = () => { if (addBtn.disabled) return; const er = addItem(); if (er) alert(er); chk(); nn.focus(); hide(); };
-  nn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (addBtn.disabled) return; const er = addItem(); if (er) alert(er); chk(); hide(); } });
+  addBtn.onmousedown = e => e.preventDefault(); // jaga fokus di kolom nama agar daftar tidak tertutup
+  const showAt = () => { const k = keepTop; keepTop = 0; show(); if (k && sg) sg.scrollTop = k; }; // setelah menambah: daftar kembali ke posisi barang terakhir yang dipilih
+  addBtn.onclick = () => { if (addBtn.disabled) return; const er = addItem(); if (er) alert(er); chk(); nn.focus(); showAt(); };
+  nn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); if (addBtn.disabled) return; const er = addItem(); if (er) alert(er); chk(); showAt(); } });
   // rekomendasi: barang yang sudah pernah diinput di trip ini (packing list + kegiatan lain)
   let sg = null;
   function hide() { if (sg) { sg.remove(); sg = null; } }
@@ -1356,6 +1395,8 @@ function wireLists(t, m) {
     for (let i = 1; i <= x.length; i++) { let prev = d[0]; d[0] = i;
       for (let j = 1; j <= y.length; j++) { const tmp = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (x[i - 1] === y[j - 1] ? 0 : 1)); prev = tmp; } }
     return d[y.length]; };
+  let fc = '', keepTop = 0;
+  nn.addEventListener('input', () => { keepTop = 0; });
   const show = () => { const f = freshTrip(t.id) || t, q = nk(nn.value);
     const have = new Set([...box.querySelectorAll('.lnm')].map(i => nk(i.value)).filter(Boolean));
     const near = k => !q || k.includes(q) || (k.length >= 3 && q.includes(k)) || (q.length >= 3 && k.length >= 3 && lev(k, q) <= (Math.max(k.length, q.length) > 5 ? 2 : 1)); // termasuk kata mirip, mis. "bbaju" ~ "baju"
@@ -1363,14 +1404,20 @@ function wireLists(t, m) {
     const all = withPrep([...packAll(f)]); // sertakan juga barang yang baru ditambahkan di form ini tetapi belum disimpan
     [...box.querySelectorAll('.lrw')].forEach(r => { const title = r.querySelector('.lnm').value.trim(), key = nk(title);
       if (key && !all.some(e => e.key === key)) all.push({key, title, cat: readCat(r.querySelector('.lct'), r.querySelector('.lnc')) || 'Lainnya', uses: [], manual: [], done: false}); });
-    const L = all.filter(e => near(e.key)).sort((a, b) => rank(a.key) - rank(b.key) || (+have.has(a.key)) - (+have.has(b.key)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
-    hide(); if (!L.length) return;
+    const L0 = all.filter(e => near(e.key)).sort((a, b) => rank(a.key) - rank(b.key) || (+have.has(a.key)) - (+have.has(b.key)) || b.uses.length - a.uses.length || a.title.localeCompare(b.title));
+    const sl = sg ? (sg.querySelector('.sgf') || {}).scrollLeft || 0 : 0;
+    hide(); if (!L0.length) return;
+    if (fc && !L0.some(e => eCats(e).includes(fc))) fc = '';
+    const L = sgFilt(L0, fc);
     sg = document.createElement('div'); sg.className = 'sg';
-    sg.innerHTML = `<div class="sgh">Barang dari Prepare &amp; trip ini — pilih yang belum ditambahkan, atau tekan + untuk barang baru</div>` + L.map(e => { const on = have.has(e.key);
+    sg.innerHTML = `<div class="sgh">Barang dari Prepare &amp; trip ini — pilih yang belum ditambahkan, atau tekan + untuk barang baru</div>` + sgChips(L0, fc, L.filter(e => !have.has(e.key)).length) + L.map(e => { const on = have.has(e.key);
       return `<button type="button" class="sgo" data-k="${esc(e.key)}" ${on ? 'disabled style="opacity:.6;cursor:default"' : ''}><span>${esc(e.title)}<br><span class="mu" style="${on ? 'color:var(--g);font-weight:600' : ''}">${on ? '✓ Sudah ditambahkan' : 'Belum ditambahkan'}</span></span><span class="mu">${esc(e.cat)}</span></button>`; }).join('');
-    nn.parentNode.appendChild(sg);
+    nn.parentNode.appendChild(sg); sgWire(sg, sl, c => { fc = c; keepTop = 0; show(); }, () => { keepTop = 0; const cc = fc; if (!cc) return;
+      const hv = new Set([...box.querySelectorAll('.lnm')].map(i => nk(i.value)).filter(Boolean)), ft = freshTrip(t.id) || t;
+      L.filter(e => !hv.has(e.key)).forEach(e => { box.insertAdjacentHTML('beforeend', listRow(ft, {name: e.title, cat: cc, ...(e.acc ? {acc: true} : e.qty ? {q: {n: e.qty, u: e.unit || 'pcs'}} : {})})); wire(box.lastElementChild); box.lastElementChild.dataset.on = ''; });
+      page = 1e9; paintPg(); fc = ''; nn.value = ''; chk(); nn.focus(); show(); });
     sg.querySelectorAll('.sgo').forEach(b => { b.onmousedown = ev => ev.preventDefault(); b.onclick = () => { const e = L.find(x => x.key === b.dataset.k); if (!e || have.has(e.key)) return;
-      nn.value = e.title;
+      keepTop = sg.scrollTop; nn.value = e.title;
       if (![...ns.options].some(o => o.value === e.cat)) ns.insertAdjacentHTML('beforeend', `<option value="${esc(e.cat)}">${esc(e.cat)}</option>`);
       ns.value = e.cat; la.checked = !!e.acc; if (e.qty && !e.acc) { lq.value = e.qty.toLocaleString('id-ID'); lu.value = e.unit || 'pcs'; } else { lq.value = ''; lu.value = e.acc ? (e.unit || 'pcs') : 'pcs'; }
       catPick(ns, nw); chk(); hide(); nn.focus(); }; }); };
